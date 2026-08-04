@@ -204,7 +204,7 @@ var KEY="mapaAmigos.v3";
 var MOTS=[
   ["salud","Salud y vida"],["sustento","Alimento y descanso"],["dinero","Dinero y lo que compra"],
   ["trascendencia","Sentido / trascendencia"],["afecto","Afecto y pareja"],
-  ["hijos","Bienestar de los hijos"],["importancia","Sentirse importante"]
+  ["hijos","Bienestar de los hijos"],["importancia","Sentirse importante"],["admiracion","Ser admirado"]
 ];
 var CEBOS={
   salud:"menos desgaste, menos estrés, dormir tranquilo",
@@ -213,13 +213,15 @@ var CEBOS={
   trascendencia:"dejar algo hecho que perdure y de lo que estar orgulloso",
   afecto:"sentirse parte, contar con alguien de confianza",
   hijos:"tiempo y seguridad para su familia",
-  importancia:"que su acierto se vea, y que se vea que fue suyo"
+  importancia:"que su acierto se vea, y que se vea que fue suyo",
+  admiracion:"que alguien reconozca de verdad lo que hace, y que se diga delante de quien le importa"
 };
 var TIPOS=[
   ["cliente","Cliente","#b4522e"],
   ["profesional","Profesional","#4a6fa5"],
   ["amigo","Amigo","#3f7d5c"],
-  ["familiar","Familiar","#8c5aa8"]
+  ["familiar","Familiar","#8c5aa8"],
+  ["conocido","Conocido","#8a7a5a"]
 ];
 function tipoLabel(t){ for(var i=0;i<TIPOS.length;i++) if(TIPOS[i][0]===t) return TIPOS[i][1]; return "Amigo"; }
 function tipoColor(t){ for(var i=0;i<TIPOS.length;i++) if(TIPOS[i][0]===t) return TIPOS[i][2]; return "#3f7d5c"; }
@@ -282,6 +284,7 @@ function newPerson(){
     pareja:"", hijos:"", familia:"", empleo:"", empresa:"", sector:"",
     aficiones:"", deportes:"", musica:"", comida:"", temas:"", evitar:"",
     exito:"", preocupa:"", fascina:"", ayuda:"", logros:"",
+    quienesImportan:"", queQuierenLosSuyos:"", gustosDeLosSuyos:"", gesto:"",
     meAporta:"", necesito:"", buscaDeMi:"", problema:"", presume:"", cebo:"",
     pasos:[], discurso:"",
     cumple:"", aniversario:"", ultimoContacto:"", frecuencia:90,
@@ -293,7 +296,7 @@ function ensure(p){
   if(p.tipo==="trabajo") p.tipo="profesional";
   if(p.tipo==="personal") p.tipo="amigo";
   if(!p.tipo) p.tipo="amigo";
-  ["exito","preocupa","fascina","ayuda","logros","sector","meAporta","necesito","buscaDeMi","problema","presume","cebo","discurso"]
+  ["exito","preocupa","fascina","ayuda","logros","sector","meAporta","necesito","buscaDeMi","problema","presume","cebo","discurso","quienesImportan","queQuierenLosSuyos","gustosDeLosSuyos","gesto"]
     .forEach(function(k){ if(p[k]==null) p[k]=""; });
   ["conexiones","notas","encuentros","pasos"].forEach(function(k){ if(!Array.isArray(p[k])) p[k]=[]; });
   return p;
@@ -303,7 +306,7 @@ function ensure(p){
 function haystack(p){
   var s=[p.nombre,p.apodo,p.ciudad,p.grupo,p.comoConocimos,p.pareja,p.hijos,p.familia,p.empleo,p.empresa,p.sector,
     p.aficiones,p.deportes,p.musica,p.comida,p.temas,p.evitar,p.exito,p.preocupa,p.fascina,p.ayuda,p.logros,
-    p.meAporta,p.necesito,p.buscaDeMi,p.problema,p.presume,p.cebo].join(" ");
+    p.meAporta,p.necesito,p.buscaDeMi,p.problema,p.presume,p.cebo,p.quienesImportan,p.queQuierenLosSuyos,p.gustosDeLosSuyos,p.gesto].join(" ");
   MOTS.forEach(function(x){ s+=" "+(p.mot[x[0]].t||""); });
   (p.notas||[]).forEach(function(n){ s+=" "+n.t; });
   return s.toLowerCase();
@@ -399,12 +402,14 @@ function terreno(p){
     {ok:hechos>=1, t:"Le has aportado algo antes de pedirle nada"},
     {ok:!!(fb&&fb.relacion==="Más cerca"), t:"El último encuentro os acercó"},
     {ok:!(fb&&fb.compromisos), t:"No le debes nada pendiente"},
-    {ok:!!p.presume, t:"Sabes de qué podrá presumir él si sale bien"}
+    {ok:!!p.presume, t:"Sabes de qué podrá presumir él si sale bien"},
+    {ok:!!p.quienesImportan, t:"Sabes quién le importa de verdad"},
+    {ok:!!p.gesto, t:"Tienes pensado un gesto que te cueste tiempo"}
   ];
   var ok=sig.filter(function(x){return x.ok;}).length;
   var pct=Math.round(ok/sig.length*100);
-  var veredicto = ok>=7 ? "El terreno está listo. Puedes plantearlo, pero deja que la conclusión la diga él."
-    : ok>=5 ? "Casi. Cubre lo que falta antes de pedir nada."
+  var veredicto = ok>=9 ? "El terreno está listo. Puedes plantearlo, pero deja que la conclusión la diga él."
+    : ok>=6 ? "Casi. Cubre lo que falta antes de pedir nada."
     : "Aún es pronto para pedir. Siembra: escucha, aporta, y averigua lo que falta.";
   return {sig:sig, ok:ok, pct:pct, veredicto:veredicto};
 }
@@ -415,11 +420,15 @@ function pasosSugeridos(p){
     out.push("Consigue que te cuente el problema con sus palabras. No lo nombres tú primero.");
     out.push("Pídele su opinión sobre cómo lo abordaría él: se apropia de lo que ayuda a construir.");
     out.push("Deja que sea él quien proponga el siguiente paso: «¿cómo lo plantearías tú?».");
+    out.push("Preg\u00fantale por los suyos: por su pareja, sus hijos o quien le importe. Casi nadie lo hace.");
+    out.push("Haz por \u00e9l algo que te cueste una tarde, sin cobrarlo ni recordarlo.");
     out.push("Cuando decida, reconócele la decisión como suya, no tu insistencia.");
   } else {
     out.push("Escucha primero sin proponer nada. Que hable él el doble que tú.");
     out.push("Ofrece ayuda concreta en "+(lower1(p.preocupa)||"lo que le preocupa")+", sin condiciones ni cobro.");
     out.push("Plantea el tema como duda tuya, no como plan cerrado.");
+    out.push("Interésate por los suyos y ac\u00e9rdate de sus nombres y de lo que persiguen.");
+    out.push("Dedícale tiempo de verdad a algo suyo: tiempo, energía y consideración, sin esperar nada.");
     out.push("Deja que remate la idea él y luego reconóceselo delante de alguien que le importe.");
   }
   return out;
@@ -447,6 +456,7 @@ function generarDiscurso(p){
     L.push("   "+(p.presume ? "Si esto sale, "+lower1(p.presume)+"." : gap("de qué podrá presumir él si sale bien: su número, su promoción, su cliente")));
     var c=ceboDe(p);
     if(c) L.push("   Recuerda su cebo: "+c+". Habla en esos términos, no en los tuyos.");
+    if(p.mot.admiracion&&p.mot.admiracion.n>=2) L.push("   Le mueve que le admiren: reconócele algo real, y mejor si hay alguien delante.");
     L.push("");
     L.push("5. CIERRE SIN CERRAR (que el sí sea suyo)");
     L.push("   No te pido que decidas nada hoy. Dime cómo lo plantearías tú en tu situación y te digo si se puede hacer.");
@@ -489,6 +499,7 @@ function openPlan(id){
     +ta("Qué problema suyo resuelvo","pl_problema",p.problema)
     +'</div>'
     +ta("De qué podrá presumir él si sale bien","pl_presume",p.presume)
+    +ta("Un gesto que le pueda hacer y me cueste tiempo","pl_gesto",p.gesto)
     +ta("Su cebo"+(c&&!p.cebo?" (sugerido: "+esc(c)+")":""),"pl_cebo",p.cebo)
     +'</fieldset>';
 
@@ -501,7 +512,7 @@ function openPlan(id){
   h+='<fieldset><legend>¿Está listo el terreno?</legend>'
     +'<div class="meter"><i style="width:'+t.pct+'%"></i></div>'
     +t.sig.map(function(s){ return '<div class="sig '+(s.ok?"yes":"no")+'"><span class="mark">'+(s.ok?"✓":"·")+'</span>'+esc(s.t)+'</div>'; }).join("")
-    +'<div class="'+(t.ok>=7?"okbox":"warnbox")+'" style="margin-top:10px">'+esc(t.veredicto)+'</div></fieldset>';
+    +'<div class="'+(t.ok>=9?"okbox":"warnbox")+'" style="margin-top:10px">'+esc(t.veredicto)+'</div></fieldset>';
 
   h+='<fieldset><legend>'+(neg?"Elevator speech":"Cómo plantearlo")+'</legend>'
     +'<textarea id="pl_discurso" style="min-height:220px" placeholder="Pulsa «Generar borrador» y edítalo a tu voz.">'+esc(p.discurso)+'</textarea>'
@@ -525,7 +536,7 @@ function openPlan(id){
     save(); refresh();
   };
   document.getElementById("gen").onclick=function(){
-    ["meAporta","necesito","buscaDeMi","problema","presume","cebo"].forEach(function(k){
+    ["meAporta","necesito","buscaDeMi","problema","presume","cebo","gesto"].forEach(function(k){
       var e=document.getElementById("pl_"+k); if(e) p[k]=e.value.trim();
     });
     document.getElementById("pl_discurso").value=generarDiscurso(p);
@@ -536,7 +547,7 @@ function openPlan(id){
   };
   document.getElementById("cancel").onclick=closeModal;
   document.getElementById("ok").onclick=function(){
-    ["meAporta","necesito","buscaDeMi","problema","presume","cebo"].forEach(function(k){
+    ["meAporta","necesito","buscaDeMi","problema","presume","cebo","gesto"].forEach(function(k){
       var e=document.getElementById("pl_"+k); if(e) p[k]=e.value.trim();
     });
     p.discurso=document.getElementById("pl_discurso").value;
@@ -841,6 +852,22 @@ function buildGuion(p){
   var t=terreno(p);
   cebo.push("Terreno preparado al "+t.pct+"%. "+t.veredicto);
   g.cebo=cebo;
+  var gente=[];
+  if(p.quienesImportan) gente.push("A quien m\u00e1s quiere: "+p.quienesImportan);
+  if(p.pareja) gente.push("Su pareja: "+p.pareja);
+  if(p.hijos) gente.push("Sus hijos: "+p.hijos);
+  if(p.queQuierenLosSuyos) gente.push("Lo que ellos persiguen: "+p.queQuierenLosSuyos);
+  if(p.gustosDeLosSuyos) gente.push("Sus gustos: "+p.gustosDeLosSuyos);
+  if(!gente.length) gente.push("A\u00fan no sabes qui\u00e9n le importa de verdad. Preg\u00fantalo: casi nadie lo hace, y nadie se abre tanto hablando de s\u00ed mismo como hablando de los suyos.");
+  gente.push("Interesarte por los suyos vale m\u00e1s que interesarte por \u00e9l, y se recuerda mucho m\u00e1s. Ap\u00fantalo despu\u00e9s y preg\u00fantale la pr\u00f3xima vez.");
+  g.gente=gente;
+  var ges=[];
+  if(p.gesto) ges.push(p.gesto);
+  if(p.hijos) ges.push("Algo pensado para "+splitList(p.hijos)[0]+": lo que hagas por sus hijos pesa m\u00e1s que lo que hagas por \u00e9l.");
+  if(p.aficiones) ges.push("Algo relacionado con "+lower1(splitList(p.aficiones)[0])+", buscado por ti, no reenviado.");
+  ges.push("Que te cueste tiempo, energ\u00eda o generosidad. Un favor de una tarde vale m\u00e1s que diez mensajes de \u00e1nimo.");
+  ges.push("Y si le admiras por algo de verdad, d\u00edselo delante de alguien que le importe: la admiraci\u00f3n en p\u00fablico es la que cuenta.");
+  g.gesto=ges;
   var rec=[];
   if(p.logros) rec.push("Concreto y verificable: "+p.logros);
   if(p.empleo) rec.push("Reconócele algo específico de su trabajo que hayas visto tú, no algo genérico.");
@@ -862,9 +889,11 @@ function openGuion(id){
     ["Por dónde empezar",g.abrir],
     ["En qué quiere tener éxito",g.quiere],
     ["El cebo y el terreno",g.cebo],
+    ["Su gente",g.gente],
     ["Temas que le encienden",g.temas],
     ["Preguntas para que hable él",g.preguntas],
     ["Cómo puedes ayudarle a conseguirlo",g.ayuda],
+    ["Un gesto que cueste tiempo",g.gesto],
     ["Reconocimiento (concreto, nunca vacío)",g.reconocer],
     ["Qué evitar",g.evitar]
   ];
@@ -928,6 +957,8 @@ function openFeedback(pid,eid){
     +ta("Qué le fascina ahora","fb_fascina","")
     +'</div>'
     +ta("En qué quiere tener éxito (si lo has averiguado)","fb_exito","")
+    +ta("Qué he aprendido de los suyos (pareja, hijos, a quién quiere)","fb_gente","")
+    +ta("Qué gesto puedo hacerle que me cueste tiempo","fb_gesto","")
     +ta("Cómo puedo ayudarle a conseguirlo","fb_ayuda","")
     +'<div class="cols">'
     +ta("Qué le prometí","fb_compromisos","")
@@ -942,7 +973,7 @@ function openFeedback(pid,eid){
     var v=function(k){ var el=document.getElementById("fb_"+k); return el?el.value.trim():""; };
     var fecha=v("fecha")||todayStr();
     var fb={aprendido:v("aprendido"),funciono:v("funciono"),nofunciono:v("nofunciono"),preocupa:v("preocupa"),
-      fascina:v("fascina"),exito:v("exito"),ayuda:v("ayuda"),compromisos:v("compromisos"),proximo:v("proximo"),relacion:v("relacion")};
+      fascina:v("fascina"),exito:v("exito"),ayuda:v("ayuda"),gente:v("gente"),gesto:v("gesto"),compromisos:v("compromisos"),proximo:v("proximo"),relacion:v("relacion")};
     if(!e){ e={id:uid(),fecha:fecha,lugar:"",motivo:"encuentro",hecho:true,fb:fb}; p.encuentros.push(e); }
     else { e.fecha=fecha; e.hecho=true; e.fb=fb; }
     p.ultimoContacto=fecha;
@@ -951,8 +982,11 @@ function openFeedback(pid,eid){
     if(fb.fascina) p.fascina=fb.fascina;
     if(fb.ayuda) p.ayuda=fb.ayuda;
     if(fb.exito) p.exito=fb.exito;
+    if(fb.gente) p.queQuierenLosSuyos=(p.queQuierenLosSuyos?p.queQuierenLosSuyos+" · ":"")+fb.gente;
+    if(fb.gesto) p.gesto=fb.gesto;
     var r=[];
     if(fb.aprendido) r.push(fb.aprendido);
+    if(fb.gente) r.push("Los suyos: "+fb.gente);
     if(fb.funciono) r.push("Le encendió: "+fb.funciono);
     if(fb.nofunciono) r.push("Le apagó: "+fb.nofunciono);
     if(fb.compromisos) r.push("Le prometí: "+fb.compromisos);
@@ -989,6 +1023,12 @@ function openEdit(id){
     +fld("Qué le fascina","fascina",p.fascina,"ta")
     +fld("Cómo puedo ayudarle a conseguirlo","ayuda",p.ayuda,"ta")
     +fld("Logros suyos que puedes reconocer (concretos)","logros",p.logros,"ta")+'</fieldset>';
+  h+='<fieldset><legend>Su gente</legend>'
+    +'<p style="color:var(--muted);font-size:12px;margin:0 0 10px">Nadie se abre tanto hablando de s\u00ed mismo como hablando de los suyos. Y casi nadie le pregunta por ellos.</p>'
+    +fld("A qui\u00e9n quiere m\u00e1s (nombres y qu\u00e9 son suyos)","quienesImportan",p.quienesImportan,"ta")
+    +fld("Qu\u00e9 quieren ellos (lo que persiguen los suyos)","queQuierenLosSuyos",p.queQuierenLosSuyos,"ta")
+    +fld("Aficiones y gustos de los suyos","gustosDeLosSuyos",p.gustosDeLosSuyos,"ta")
+    +fld("Un gesto que le pueda hacer y me cueste tiempo","gesto",p.gesto,"ta")+'</fieldset>';
   h+='<fieldset><legend>Gustos e intereses</legend>'
     +fld("Aficiones (separadas por comas)","aficiones",p.aficiones)
     +'<div class="cols">'+fld("Deporte / equipo","deportes",p.deportes)+fld("Música","musica",p.musica)
@@ -1056,7 +1096,7 @@ function fld(label,key,val,type){
 }
 function commit(p,isNew){
   ["nombre","apodo","ciudad","grupo","sector","comoConocimos","pareja","hijos","familia","empleo","empresa",
-   "exito","preocupa","fascina","ayuda","logros",
+   "exito","preocupa","fascina","ayuda","logros","quienesImportan","queQuierenLosSuyos","gustosDeLosSuyos","gesto",
    "aficiones","deportes","musica","comida","temas","evitar","cumple","aniversario","ultimoContacto"]
    .forEach(function(k){ var e=document.getElementById("f_"+k); if(e) p[k]=e.value.trim(); });
   p.tipo=document.getElementById("f_tipo").value;
