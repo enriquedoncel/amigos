@@ -1266,24 +1266,54 @@ function conectarCarpeta(){
   toast("Elige la carpeta App Amigos dentro de OneDrive");
   window.showDirectoryPicker({mode:"readwrite",id:"mapaAmigos"}).then(function(hd){
     FS.handle=hd; return idbSet("dir",hd);
-  }).then(function(){ return escribirCarpeta(); })
-   .then(function(ok){
-     toast(ok?"Carpeta conectada. A partir de ahora se guarda solo.":"Carpeta elegida, pero no he podido escribir en ella.");
-     if(document.getElementById("syncInfo")) openSync();
+  }).then(function(){ return leerArchivo(); })
+   .then(function(d){
+     if(d && d.people.length && !state.people.length){
+       if(confirm("Esa carpeta ya tiene "+d.people.length+" fichas y esta copia está vacía.\n\n¿Cargarlas aquí? (si dices que no, no tocaré la carpeta)")){
+         aplicarDatos(d); toast("Cargado desde la carpeta. Ya está todo enlazado.");
+       } else { toast("Carpeta conectada. No he escrito nada."); }
+       return true;
+     }
+     return escribirCarpeta().then(function(ok){
+       toast(ok?"Carpeta conectada. A partir de ahora se guarda solo.":"Carpeta conectada, pero no he escrito nada.");
+       return ok;
+     });
    })
+   .then(function(){ if(document.getElementById("syncInfo")) openSync(); })
    .catch(function(){});
 }
-function escribirCarpeta(){
+function leerArchivo(){
+  if(!FS.handle) return Promise.resolve(null);
+  return FS.handle.getFileHandle("mapa-amigos.json")
+    .then(function(f){ return f.getFile(); })
+    .then(function(f){ return f.text(); })
+    .then(function(t){ var d=JSON.parse(t); return (d&&Array.isArray(d.people))?d:null; })
+    .catch(function(){ return null; });
+}
+function escribirArchivo(){
+  return FS.handle.getFileHandle("mapa-amigos.json",{create:true})
+    .then(function(f){ return f.createWritable(); })
+    .then(function(w){ return w.write(payload()).then(function(){ return w.close(); }); })
+    .then(function(){
+      setSync("guardado "+new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}));
+      return true;
+    });
+}
+function escribirCarpeta(forzar){
   if(!FS.handle) return Promise.resolve(false);
   return permiso(FS.handle,true).then(function(ok){
     if(!ok){ setSync("permiso denegado"); return false; }
-    return FS.handle.getFileHandle("mapa-amigos.json",{create:true})
-      .then(function(f){ return f.createWritable(); })
-      .then(function(w){ return w.write(payload()).then(function(){ return w.close(); }); })
-      .then(function(){
-        setSync("guardado "+new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}));
-        return true;
+    if(!forzar && !state.people.length){
+      return leerArchivo().then(function(d){
+        if(d && d.people.length){
+          setSync("no sobrescrito");
+          toast("La carpeta tiene "+d.people.length+" fichas y esta copia está vacía. No la he tocado. Usa \u22ef \u2192 Traer de la carpeta.");
+          return false;
+        }
+        return escribirArchivo();
       });
+    }
+    return escribirArchivo();
   }).catch(function(){ setSync("error al guardar"); return false; });
 }
 function programarSync(){
@@ -1336,6 +1366,7 @@ function openSync(){
   var puede=fsSoportado(), conectada=!!FS.handle;
   var h='<h2>Sincronizar</h2>'
     +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 12px">Tus datos viven en este dispositivo. Esto los copia a la carpeta que compartes entre ordenador y m\u00f3vil.</p>'
+    +(state.people.length?'':'<div class="warnbox">Esta copia est\u00e1 vac\u00eda. Antes de sincronizar, trae tus datos: <b>Traer de la carpeta</b> o <b>Copiar o pegar datos</b>. Si sincronizas en vac\u00edo no borro nada: te aviso y paro.</div>')
     +'<div id="syncInfo" class="'+(conectada?"okbox":"infobox")+'">'
     +(conectada?"Carpeta conectada. Cada cambio se guarda solo unos segundos despu\u00e9s.":(puede?"Sin carpeta conectada todav\u00eda.":"Este navegador no puede escribir en carpetas: usa «Enviar a OneDrive» o «Copiar mis datos»."))
     +(FS.msg?'<br><span style="color:var(--muted)">Estado: '+esc(FS.msg)+'</span>':'')+'</div>';
