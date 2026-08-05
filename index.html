@@ -1184,9 +1184,8 @@ function importJSON(file){
     try{
       var d=JSON.parse(r.result);
       if(!d||!Array.isArray(d.people)) throw 0;
-      if(state.people.length&&!confirm("¿Sustituir los datos actuales por los del archivo?")) return;
-      state.people=d.people.map(ensure); if(d.me) state.me=d.me;
-      save(); renderSeg(); renderAll();
+      if(!state.people.length){ aplicarDatos(d); return; }
+      elegirComo(d,"desde un archivo");
     }catch(e){ alert("Ese archivo no tiene el formato esperado."); }
   };
   r.readAsText(file);
@@ -1268,6 +1267,7 @@ function conectarCarpeta(){
     FS.handle=hd; return idbSet("dir",hd);
   }).then(function(){ return leerArchivo(); })
    .then(function(d){
+     if(d && d.people.length && state.people.length){ elegirComo(d,"desde la carpeta que acabas de conectar"); return true; }
      if(d && d.people.length && !state.people.length){
        if(confirm("Esa carpeta ya tiene "+d.people.length+" fichas y esta copia está vacía.\n\n¿Cargarlas aquí? (si dices que no, no tocaré la carpeta)")){
          aplicarDatos(d); toast("Cargado desde la carpeta. Ya está todo enlazado.");
@@ -1331,6 +1331,80 @@ function leerCarpeta(){
       .then(function(f){ return f.text(); })
       .then(function(t){ var d=JSON.parse(t); return (d&&Array.isArray(d.people))?d:null; });
   }).catch(function(){ return null; });
+}
+function unirTexto(a,b){
+  a=(a||"").trim(); b=(b||"").trim();
+  if(!b) return a; if(!a) return b;
+  if(a.indexOf(b)>=0) return a;
+  if(b.indexOf(a)>=0) return b;
+  return a+" · "+b;
+}
+function fusionarPersona(a,b){
+  var r=JSON.parse(JSON.stringify(a));
+  Object.keys(b).forEach(function(k){
+    if(k==="id") return;
+    var vb=b[k];
+    if(k==="mot"){
+      MOTS.forEach(function(m){
+        var A=r.mot[m[0]]||{n:0,t:""}, B=(b.mot||{})[m[0]]||{n:0,t:""};
+        A.n=Math.max(A.n||0,B.n||0); A.t=unirTexto(A.t,B.t); r.mot[m[0]]=A;
+      });
+      return;
+    }
+    if(Array.isArray(vb)){
+      var seen={}, arr=[];
+      (r[k]||[]).concat(vb).forEach(function(x){
+        var key=(typeof x==="string")?x:(x.id||JSON.stringify([x.d,x.t,x.fecha,x.motivo]));
+        if(seen[key]) return; seen[key]=1; arr.push(x);
+      });
+      r[k]=arr; return;
+    }
+    if(typeof vb==="string"){ r[k]=unirTexto(r[k],vb); return; }
+    if(typeof vb==="number"){ if(!r[k]) r[k]=vb; return; }
+  });
+  return r;
+}
+function fusionar(actuales,entrantes){
+  var byId={}, orden=[];
+  actuales.forEach(function(p){ var c=ensure(JSON.parse(JSON.stringify(p))); byId[c.id]=c; orden.push(c.id); });
+  entrantes.forEach(function(q){
+    q=ensure(JSON.parse(JSON.stringify(q)));
+    var destino=byId[q.id];
+    if(!destino){
+      var nom=(q.nombre||"").trim().toLowerCase();
+      if(nom) orden.forEach(function(k){ if(!destino && (byId[k].nombre||"").trim().toLowerCase()===nom) destino=byId[k]; });
+    }
+    if(destino) byId[destino.id]=fusionarPersona(destino,q);
+    else { byId[q.id]=q; orden.push(q.id); }
+  });
+  return orden.map(function(k){ return byId[k]; });
+}
+function elegirComo(d,origen){
+  var n=(d.people||[]).length;
+  var mios=state.people.length;
+  var h='<h2>Datos entrantes</h2>'
+    +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 12px">'+esc(origen||"")+'</p>'
+    +'<div class="infobox">Traes <b>'+n+'</b> fichas. Aqu\u00ed tienes <b>'+mios+'</b>.</div>'
+    +'<fieldset><legend>Combinar (recomendado)</legend>'
+    +'<p style="font-size:13px;margin:0 0 8px">Suma las dos copias. Las personas que est\u00e9n en las dos se unen campo a campo, sin perder nada de ninguna; las notas, citas y pasos se acumulan. Puede quedar alg\u00fan texto repetido, y eso se limpia en un minuto.</p>'
+    +'<button class="btn primary" id="fu_combinar">Combinar las dos</button></fieldset>'
+    +'<fieldset><legend>Sustituir</legend>'
+    +'<p style="font-size:13px;margin:0 0 8px">Tira lo de aqu\u00ed y deja solo lo que llega. \u00danicamente si sabes que esta copia est\u00e1 vieja.</p>'
+    +'<button class="btn danger" id="fu_sustituir">Sustituir lo m\u00edo</button></fieldset>'
+    +'<div class="modal-actions"><button class="btn" id="cancel">Cancelar</button></div>';
+  showModal(h);
+  document.getElementById("cancel").onclick=closeModal;
+  document.getElementById("fu_combinar").onclick=function(){
+    var antes=state.people.length;
+    state.people=fusionar(state.people,d.people||[]);
+    if(d.me) Object.keys(d.me).forEach(function(k){ state.me[k]=unirTexto(state.me[k],d.me[k]); });
+    save(); closeModal(); renderSeg(); renderAll();
+    toast("Combinado: "+antes+" + "+n+" \u2192 "+state.people.length+" fichas");
+  };
+  document.getElementById("fu_sustituir").onclick=function(){
+    if(!confirm("Se pierde lo que tienes aqu\u00ed. \u00bfSeguro?")) return;
+    aplicarDatos(d); closeModal(); toast("Sustituido");
+  };
 }
 function aplicarDatos(d){
   state.people=d.people.map(ensure); if(d.me) state.me=d.me;
@@ -1396,8 +1470,8 @@ function openSync(){
   if((b=document.getElementById("sy_traer"))) b.onclick=function(){
     leerCarpeta().then(function(d){
       if(!d){ alert("No he podido leer mapa-amigos.json en esa carpeta."); return; }
-      if(!confirm("Esto sustituye lo que tienes ahora por lo de la carpeta. \u00bfSeguimos?")) return;
-      aplicarDatos(d); closeModal();
+      if(!state.people.length){ aplicarDatos(d); closeModal(); toast("Cargado desde la carpeta"); return; }
+      elegirComo(d,"desde la carpeta compartida");
     });
   };
   document.getElementById("sy_enviar").onclick=enviarArchivo;
@@ -1423,9 +1497,8 @@ function openPaste(){
     try{
       var d=JSON.parse(document.getElementById("pasteBox").value);
       if(!d||!Array.isArray(d.people)) throw 0;
-      if(state.people.length&&!confirm("\u00bfSustituir los datos actuales?")) return;
-      state.people=d.people.map(ensure); if(d.me) state.me=d.me;
-      save(); closeModal(); renderSeg(); renderAll();
+      if(!state.people.length){ aplicarDatos(d); closeModal(); return; }
+      elegirComo(d,"pegado a mano");
     }catch(e){ alert("Ese texto no tiene el formato esperado."); }
   };
 }
