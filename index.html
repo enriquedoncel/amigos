@@ -29,6 +29,8 @@ textarea{resize:vertical;min-height:56px}
 header.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
 .title{display:flex;align-items:baseline;gap:10px}
 .title small{color:var(--muted);font-size:12.5px}
+.lema{margin:3px 0 0;font-size:12.5px;color:var(--muted);max-width:560px;line-height:1.45}
+.lema b{color:var(--ink);font-weight:620}
 .tabs{display:flex;gap:4px;background:#ece9e3;padding:3px;border-radius:10px}
 .tabs button{border:0;background:transparent;padding:6px 13px;border-radius:8px;color:var(--muted);font-weight:550}
 .tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
@@ -117,6 +119,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 @media(max-width:620px){.cols,.cols3{grid-template-columns:1fr}.mot{grid-template-columns:1fr;gap:4px}}
 @media(max-width:640px){
   .wrap{padding:12px 12px 48px}
+  .lema{font-size:12px}
   h1{font-size:20px}
   header.top{gap:8px}
   .tabs{width:100%}
@@ -160,6 +163,9 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 .inf-op label{display:inline-flex;align-items:center;gap:5px;font-size:13px}
 .inf-op input[type=checkbox]{width:auto}
 .syncst{font-size:11.5px;color:var(--muted)}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#1f1d1a;color:#fff;
+  padding:10px 16px;border-radius:10px;font-size:13.5px;opacity:0;pointer-events:none;transition:.2s;z-index:120;max-width:90vw;text-align:center}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 @media print{
   @page{margin:14mm}
   body{background:#fff}
@@ -181,7 +187,8 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 <body>
 <div class="wrap">
   <header class="top">
-    <div class="title"><h1>Mapa de amigos</h1><small id="count"></small></div>
+    <div class="titlewrap"><div class="title"><h1>Mapa de amigos</h1><small id="count"></small></div>
+      <p class="lema">Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
     <div class="tabs">
       <button data-tab="fichas" class="on">Fichas</button>
       <button data-tab="citas">Citas</button>
@@ -199,6 +206,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
     <button class="btn primary" id="add">+ Persona</button>
     <button class="btn" id="meBtn">Mi perfil</button>
     <button class="btn" id="syncBtn">Sincronizar</button>
+    <button class="btn" id="syncOpt" title="Opciones de sincronización">⋯</button>
     <span class="syncst" id="syncSt"></span>
     <input type="file" id="file" accept="application/json" style="display:none">
   </div>
@@ -1163,10 +1171,12 @@ function closeModal(){ document.getElementById("overlay").classList.remove("on")
 
 /* ---------- import / export / demo ---------- */
 function exportJSON(){
+  try{
   var blob=new Blob([JSON.stringify({people:state.people,me:state.me,v:3,exported:new Date().toISOString()},null,2)],{type:"application/json"});
   var a=document.createElement("a");
   a.href=URL.createObjectURL(blob); a.download="mapa-amigos.json"; a.click();
   setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
+  }catch(e){ try{ toast("No he podido descargar el archivo. Usa \u22ef \u2192 Copiar o pegar datos."); }catch(e2){} }
 }
 function importJSON(file){
   var r=new FileReader();
@@ -1210,6 +1220,14 @@ function demo(){
   state.people=[a,b,c]; save(); renderAll();
 }
 
+/* ---------- aviso flotante ---------- */
+function toast(t){
+  var el=document.getElementById("toast");
+  if(!el){ el=document.createElement("div"); el.id="toast"; document.body.appendChild(el); }
+  el.textContent=t; el.className="on";
+  clearTimeout(toast.t); toast.t=setTimeout(function(){ el.className=""; },2600);
+}
+
 /* ---------- sincronizacion con carpeta ---------- */
 var FS={handle:null,timer:null};
 function payload(){ return JSON.stringify({people:state.people,me:state.me,v:3,saved:new Date().toISOString()},null,2); }
@@ -1235,12 +1253,24 @@ function permiso(hd,pedir){
     return hd.requestPermission(o).then(function(s2){ return s2==="granted"; });
   });
 }
+function sincronizarYa(){
+  if(FS.handle){
+    escribirCarpeta().then(function(ok){ toast(ok?"Guardado en la carpeta":"No he podido guardar. Abre las opciones con \u22ef"); });
+    return;
+  }
+  if(fsSoportado()){ conectarCarpeta(); return; }
+  enviarArchivo();
+}
 function conectarCarpeta(){
   if(!fsSoportado()){ alert("Este navegador no puede escribir en carpetas. En el m\u00f3vil usa «Enviar a OneDrive»."); return; }
+  toast("Elige la carpeta App Amigos dentro de OneDrive");
   window.showDirectoryPicker({mode:"readwrite",id:"mapaAmigos"}).then(function(hd){
     FS.handle=hd; return idbSet("dir",hd);
   }).then(function(){ return escribirCarpeta(); })
-   .then(function(){ if(document.getElementById("syncInfo")) openSync(); })
+   .then(function(ok){
+     toast(ok?"Carpeta conectada. A partir de ahora se guarda solo.":"Carpeta elegida, pero no he podido escribir en ella.");
+     if(document.getElementById("syncInfo")) openSync();
+   })
    .catch(function(){});
 }
 function escribirCarpeta(){
@@ -1405,7 +1435,8 @@ function renderInforme(){
   var alcance=state.tipo?tipoLabel(state.tipo).toLowerCase()+"s":"todas las categorías";
   if(state.q) alcance+=' · búsqueda "'+state.q+'"';
   var h='<div class="inf-h1">Mapa de amigos</div>'
-    +'<div class="inf-meta">'+esc(hoy)+' · '+list.length+' de '+state.people.length+' personas · '+esc(alcance)+'</div>';
+    +'<div class="inf-meta">'+esc(hoy)+' · '+list.length+' de '+state.people.length+' personas · '+esc(alcance)+'</div>'
+    +'<p class="lema" style="margin:-10px 0 18px">Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p>';
   if(!list.length){ el.innerHTML=h+'<p style="color:var(--muted)">No hay nadie que cumpla el filtro actual.</p>'; return; }
   // kpis
   var t=today(), citas=0, tocaEscribir=0, cumples=0, pasosPend=0;
@@ -1513,7 +1544,8 @@ document.getElementById("q").oninput=function(e){ state.q=e.target.value; render
 document.getElementById("fGrupo").onchange=function(e){ state.grupo=e.target.value; renderAll(); };
 document.getElementById("add").onclick=function(){ openEdit(null); };
 document.getElementById("meBtn").onclick=openMe;
-document.getElementById("syncBtn").onclick=openSync;
+document.getElementById("syncBtn").onclick=sincronizarYa;
+document.getElementById("syncOpt").onclick=openSync;
 document.getElementById("file").onchange=function(e){ if(e.target.files[0]) importJSON(e.target.files[0]); e.target.value=""; };
 ["ip_plan","ip_guion","ip_gente","ip_notas"].forEach(function(k){ document.getElementById(k).onchange=renderInforme; });
 document.getElementById("pdfBtn").onclick=function(){ renderInforme(); setTimeout(function(){ window.print(); },150); };
