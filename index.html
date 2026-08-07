@@ -50,7 +50,12 @@ header.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-conte
 .chip{display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:2px 9px;font-size:12px;color:var(--muted)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:12px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px;transition:.12s}
+.card{position:relative}
 .card:hover{border-color:#cfc9bf;box-shadow:0 4px 14px rgba(0,0,0,.05)}
+.delx{position:absolute;top:6px;right:6px;border:0;background:transparent;color:#c9c3ba;font-size:15px;line-height:1;
+  padding:6px 8px;border-radius:8px}
+.delx:hover{background:var(--accent-soft);color:var(--accent)}
+@media(max-width:640px){.delx{font-size:17px;padding:8px 10px;color:#b0a99f}}
 .card .head{display:flex;gap:10px;align-items:center;margin-bottom:9px;cursor:pointer}
 .av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:650;flex:none;font-size:14px}
 .card .nm{font-weight:620;line-height:1.2}
@@ -59,6 +64,10 @@ header.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-conte
 .tag{background:var(--accent-soft);color:#8c3f22;border-radius:6px;padding:2px 7px;font-size:11.5px}
 .tag.g{background:#eef3ef;color:#3f7d5c}
 .cardacts{display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid var(--line);padding-top:9px}
+.conv{font-size:12.5px;line-height:1.45;background:#faf8f5;border-left:2px solid var(--accent-soft);
+  padding:6px 9px;border-radius:0 8px 8px 0;margin:8px 0 9px;color:#4a443d}
+.conv b{color:var(--accent);font-weight:620}
+.conv.vacia{color:#a8a29a;font-style:italic;border-left-color:var(--line);background:transparent;padding-left:0}
 .empty{text-align:center;color:var(--muted);padding:44px 20px;border:1px dashed var(--line);border-radius:var(--radius);background:#fff}
 #graphBox{background:#fff;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;position:relative}
 #graph{display:block;width:100%;height:540px;touch-action:none;cursor:grab}
@@ -163,6 +172,9 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 .inf-op label{display:inline-flex;align-items:center;gap:5px;font-size:13px}
 .inf-op input[type=checkbox]{width:auto}
 .syncst{font-size:11.5px;color:var(--muted)}
+.banner{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#fdf7e8;border:1px solid #f0e2c0;
+  border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:12px}
+.banner.ok{background:#eef3ef;border-color:#d6e4da}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#1f1d1a;color:#fff;
   padding:10px 16px;border-radius:10px;font-size:13.5px;opacity:0;pointer-events:none;transition:.2s;z-index:120;max-width:90vw;text-align:center}
 #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -207,10 +219,12 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
     <button class="btn" id="meBtn">Mi perfil</button>
     <button class="btn" id="syncBtn">Sincronizar</button>
     <button class="btn" id="syncOpt" title="Opciones de sincronización">⋯</button>
+    <button class="btn primary" id="instalar" style="display:none">Instalar</button>
     <span class="syncst" id="syncSt"></span>
     <input type="file" id="file" accept="application/json" style="display:none">
   </div>
 
+  <div id="aviso"></div>
   <div id="view-fichas"><div class="grid" id="cards"></div></div>
   <div id="view-citas" style="display:none"><div id="citas"></div></div>
   <div id="view-mapa" style="display:none">
@@ -273,10 +287,12 @@ var TIPOS=[
 function tipoLabel(t){ for(var i=0;i<TIPOS.length;i++) if(TIPOS[i][0]===t) return TIPOS[i][1]; return "Amigo"; }
 function tipoColor(t){ for(var i=0;i<TIPOS.length;i++) if(TIPOS[i][0]===t) return TIPOS[i][2]; return "#3f7d5c"; }
 function esNegocio(p){ return p.tipo==="cliente"||p.tipo==="profesional"; }
+function esF(p){ return p&&p.genero==="f"; }
+function EL(p){ return esF(p)?"ella":"él"; }
+function SU(p){ return esF(p)?"suya":"suyo"; }
 
 var state={ people:[], me:null, tab:"fichas", q:"", grupo:"", tipo:"" };
 var SEED=null;
-var DEMO_NAMES=["Marta Ruiz","Javier Soler","Nuria Peña"];
 
 /* ---------- persistencia ---------- */
 function newMe(){ return {nombre:"",titular:"",experiencia:"",resuelvo:"",logros:"",sectores:"",pido:""}; }
@@ -291,7 +307,7 @@ function save(){
   try{ localStorage.setItem(KEY,JSON.stringify({people:state.people,me:state.me,v:3,saved:new Date().toISOString()})); }
   catch(e){ if(!save.warned){ save.warned=true;
     alert("Este navegador no permite guardar datos localmente. Usa Sincronizar para no perder lo que escribas."); } }
-  try{ programarSync(); }catch(e){}
+  try{ programarSync(); revisarAvisos(); }catch(e){}
 }
 function uid(){ return "p"+Math.random().toString(36).slice(2,9); }
 function applySeed(){
@@ -303,8 +319,6 @@ function applySeed(){
 function seedIfEmpty(){
   if(!SEED) return;
   if(!state.people.length){ applySeed(); return; }
-  var soloDemo=state.people.every(function(p){ return DEMO_NAMES.indexOf(p.nombre)>=0; });
-  if(soloDemo) applySeed();
 }
 
 /* ---------- utilidades ---------- */
@@ -328,10 +342,10 @@ function nextAnniversary(s){
 function lower1(s){ s=String(s||"").trim(); return s?s.charAt(0).toLowerCase()+s.slice(1):""; }
 function newPerson(){
   var m={}; MOTS.forEach(function(x){ m[x[0]]={n:0,t:""}; });
-  return { id:uid(), tipo:"amigo", nombre:"", apodo:"", ciudad:"", grupo:"", comoConocimos:"",
+  return { id:uid(), tipo:"amigo", genero:"", nombre:"", apodo:"", ciudad:"", grupo:"", comoConocimos:"",
     pareja:"", hijos:"", familia:"", empleo:"", empresa:"", sector:"",
     aficiones:"", deportes:"", musica:"", comida:"", temas:"", evitar:"",
-    exito:"", preocupa:"", fascina:"", ayuda:"", logros:"",
+    exito:"", admirado:"", importante:"", preocupa:"", fascina:"", ayuda:"", logros:"",
     quienesImportan:"", queQuierenLosSuyos:"", gustosDeLosSuyos:"", gesto:"",
     meAporta:"", necesito:"", buscaDeMi:"", problema:"", presume:"", cebo:"",
     pasos:[], discurso:"",
@@ -344,7 +358,7 @@ function ensure(p){
   if(p.tipo==="trabajo") p.tipo="profesional";
   if(p.tipo==="personal") p.tipo="amigo";
   if(!p.tipo) p.tipo="amigo";
-  ["exito","preocupa","fascina","ayuda","logros","sector","meAporta","necesito","buscaDeMi","problema","presume","cebo","discurso","quienesImportan","queQuierenLosSuyos","gustosDeLosSuyos","gesto"]
+  ["genero","exito","admirado","importante","preocupa","fascina","ayuda","logros","sector","meAporta","necesito","buscaDeMi","problema","presume","cebo","discurso","quienesImportan","queQuierenLosSuyos","gustosDeLosSuyos","gesto"]
     .forEach(function(k){ if(p[k]==null) p[k]=""; });
   ["conexiones","notas","encuentros","pasos"].forEach(function(k){ if(!Array.isArray(p[k])) p[k]=[]; });
   return p;
@@ -353,7 +367,7 @@ function ensure(p){
 /* ---------- filtros ---------- */
 function haystack(p){
   var s=[p.nombre,p.apodo,p.ciudad,p.grupo,p.comoConocimos,p.pareja,p.hijos,p.familia,p.empleo,p.empresa,p.sector,
-    p.aficiones,p.deportes,p.musica,p.comida,p.temas,p.evitar,p.exito,p.preocupa,p.fascina,p.ayuda,p.logros,
+    p.aficiones,p.deportes,p.musica,p.comida,p.temas,p.evitar,p.exito,p.admirado,p.importante,p.preocupa,p.fascina,p.ayuda,p.logros,
     p.meAporta,p.necesito,p.buscaDeMi,p.problema,p.presume,p.cebo,p.quienesImportan,p.queQuierenLosSuyos,p.gustosDeLosSuyos,p.gesto].join(" ");
   MOTS.forEach(function(x){ s+=" "+(p.mot[x[0]].t||""); });
   (p.notas||[]).forEach(function(n){ s+=" "+n.t; });
@@ -406,8 +420,7 @@ function renderCards(){
   if(!state.people.length){
     el.innerHTML='<div class="empty" style="grid-column:1/-1"><h3>Aún no hay nadie</h3>'
       +'<p>Empieza por una persona: nombre y lo poco que sepas.</p>'
-      +'<button class="btn primary" onclick="openEdit(null)">Añadir la primera persona</button> '
-      +'<button class="btn" onclick="demo()">Ver ejemplo</button></div>';
+      +'<button class="btn primary" onclick="openEdit(null)">Añadir la primera persona</button></div>';
     return;
   }
   if(!list.length){ el.innerHTML='<div class="empty" style="grid-column:1/-1">Sin resultados para ese filtro.</div>'; return; }
@@ -417,6 +430,7 @@ function renderCards(){
     var sub=[p.empleo,p.empresa||p.ciudad].filter(Boolean).join(" · ");
     var due=contactStatus(p), prox=nextMeeting(p), t=terreno(p);
     return '<div class="card">'
+      +'<button class="delx" title="Eliminar ficha" onclick="borrarPersona(\''+p.id+'\',event)">\u2715</button>'
       +'<div class="head" onclick="openEdit(\''+p.id+'\')"><div class="av" style="background:'+colorOf(p)+'">'+esc(initials(p.nombre))+'</div>'
       +'<div><div class="nm">'+esc(p.nombre||"(sin nombre)")+'</div><div class="sub">'+esc(sub||p.grupo||"")+'</div></div></div>'
       +'<span class="badge" style="background:'+colorOf(p)+'22;color:'+colorOf(p)+'">'+tipoLabel(p.tipo)+'</span> '
@@ -425,11 +439,28 @@ function renderCards(){
       +(prox?'<span class="badge soon">cita '+esc(fmtDate(prox.fecha))+'</span> ':"")
       +(p.necesito?'<span class="badge">terreno '+t.pct+'%</span>':"")
       +'<div class="tags">'+tags+top+'</div>'
-      +'<div class="cardacts"><button class="btn sm" onclick="openGuion(\''+p.id+'\')">Guión</button>'
+      +ultimaConv(p)
+      +'<div class="cardacts"><button class="btn sm" onclick="openNota(\''+p.id+'\')">+ Conversación</button>'
+      +'<button class="btn sm" onclick="openGuion(\''+p.id+'\')">Guión</button>'
       +'<button class="btn sm" onclick="openPlan(\''+p.id+'\')">Plan</button>'
       +'<button class="btn sm" onclick="openCita(\''+p.id+'\')">Agendar</button>'
       +'<button class="btn sm" onclick="openFeedback(\''+p.id+'\',null)">¿Cómo fue?</button></div></div>';
   }).join("");
+}
+
+function borrarPersona(id,ev){
+  if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+  var p=byId(id); if(!p) return;
+  var n=p.nombre||"esta persona";
+  var extras=[];
+  if((p.notas||[]).length) extras.push((p.notas.length)+" nota"+(p.notas.length>1?"s":""));
+  if((p.encuentros||[]).length) extras.push((p.encuentros.length)+" encuentro"+(p.encuentros.length>1?"s":""));
+  if(p.discurso) extras.push("su discurso");
+  if(!confirm("\u00bfEliminar a "+n+"?"+(extras.length?"\n\nSe borra tambi\u00e9n "+extras.join(", ")+".":"")+"\n\nQuedar\u00e1 una copia en mapa-amigos-anterior.json la pr\u00f3xima vez que sincronices.")) return;
+  state.people=state.people.filter(function(x){ return x.id!==id; });
+  state.people.forEach(function(x){ x.conexiones=(x.conexiones||[]).filter(function(c){ return c!==id; }); });
+  save(); renderSeg(); renderAll();
+  toast("Eliminada la ficha de "+n);
 }
 
 /* ---------- PLAN: intercambio, cebo, terreno, discurso ---------- */
@@ -445,12 +476,12 @@ function terreno(p){
   var sig=[
     {ok:!!p.exito, t:"Sabes en qué quiere tener éxito"},
     {ok:!!(p.problema||p.preocupa), t:"Sabes qué problema suyo puedes resolver"},
-    {ok:!!p.buscaDeMi, t:"Sabes qué espera él de ti"},
+    {ok:!!p.buscaDeMi, t:"Sabes qué espera de ti"},
     {ok:!!ceboDe(p), t:"Sabes cuál es su cebo"},
     {ok:hechos>=1, t:"Le has aportado algo antes de pedirle nada"},
     {ok:!!(fb&&fb.relacion==="Más cerca"), t:"El último encuentro os acercó"},
     {ok:!(fb&&fb.compromisos), t:"No le debes nada pendiente"},
-    {ok:!!p.presume, t:"Sabes de qué podrá presumir él si sale bien"},
+    {ok:!!p.presume, t:"Sabes de qué podrá presumir si sale bien"},
     {ok:!!p.quienesImportan, t:"Sabes quién le importa de verdad"},
     {ok:!!p.gesto, t:"Tienes pensado un gesto que te cueste tiempo"}
   ];
@@ -467,8 +498,9 @@ function pasosSugeridos(p){
     out.push("Aporta algo antes de pedir: un dato, un contacto o una idea sobre "+(lower1(p.problema||p.preocupa)||"lo que le preocupa")+".");
     out.push("Consigue que te cuente el problema con sus palabras. No lo nombres tú primero.");
     out.push("Pídele su opinión sobre cómo lo abordaría él: se apropia de lo que ayuda a construir.");
-    out.push("Deja que sea él quien proponga el siguiente paso: «¿cómo lo plantearías tú?».");
+    out.push("Deja que sea "+EL(p)+" quien proponga el siguiente paso: «¿cómo lo plantearías tú?».");
     out.push("Preg\u00fantale por los suyos: por su pareja, sus hijos o quien le importe. Casi nadie lo hace.");
+    out.push("Cuando aparezca un bloqueo con un distribuidor o dentro de su equipo, preguntar «\u00bfqu\u00e9 necesitar\u00edas para que esto se solucionara?» en vez de proponer yo la soluci\u00f3n.");
     out.push("Haz por \u00e9l algo que te cueste una tarde, sin cobrarlo ni recordarlo.");
     out.push("Cuando decida, reconócele la decisión como suya, no tu insistencia.");
   } else {
@@ -476,8 +508,9 @@ function pasosSugeridos(p){
     out.push("Ofrece ayuda concreta en "+(lower1(p.preocupa)||"lo que le preocupa")+", sin condiciones ni cobro.");
     out.push("Plantea el tema como duda tuya, no como plan cerrado.");
     out.push("Interésate por los suyos y ac\u00e9rdate de sus nombres y de lo que persiguen.");
+    out.push("Al despedirte, decirle que te ha ense\u00f1ado mucho y proponerle una actividad concreta relacionada con lo suyo.");
     out.push("Dedícale tiempo de verdad a algo suyo: tiempo, energía y consideración, sin esperar nada.");
-    out.push("Deja que remate la idea él y luego reconóceselo delante de alguien que le importe.");
+    out.push("Deja que remate la idea "+EL(p)+" y luego reconóceselo delante de alguien que le importe.");
   }
   return out;
 }
@@ -500,7 +533,7 @@ function generarDiscurso(p){
     L.push("   "+(me.resuelvo ? me.resuelvo : gap("qué problema resuelves tú, en una frase")));
     L.push("   "+(me.logros ? "Ya lo hice antes: "+me.logros+"." : gap("un logro tuyo medible: cifra, plazo, cliente")));
     L.push("");
-    L.push("4. QUÉ GANA ÉL (el gusano en el anzuelo)");
+    L.push("4. QU\u00c9 GANA "+(esF(p)?"ELLA":"\u00c9L")+" (el gusano en el anzuelo)");
     L.push("   "+(p.presume ? "Si esto sale, "+lower1(p.presume)+"." : gap("de qué podrá presumir él si sale bien: su número, su promoción, su cliente")));
     var c=ceboDe(p);
     if(c) L.push("   Recuerda su cebo: "+c+". Habla en esos términos, no en los tuyos.");
@@ -524,7 +557,7 @@ function generarDiscurso(p){
       : gap("qué necesitas de él")));
     L.push("");
     L.push("5. QUE LA IDEA SEA SUYA");
-    L.push("   Deja que sea él quien proponga la solución. Cuando lo haga, dale el mérito y díselo.");
+    L.push("   Deja que sea "+EL(p)+" quien proponga la solución. Cuando lo haga, dale el mérito y díselo.");
   }
   L.push("");
   L.push("— El menú es compartido: los dos tenéis que salir habiendo disfrutado. Si solo ganas tú, no vuelve a haber comida.");
@@ -541,12 +574,12 @@ function openPlan(id){
 
   h+='<fieldset><legend>El intercambio</legend>'
     +'<div class="cols">'
-    +ta("Qué me aporta él","pl_meAporta",p.meAporta)
-    +ta("Qué necesito de él (el sí que busco)","pl_necesito",p.necesito)
-    +ta("Qué busca él que yo le aporte","pl_buscaDeMi",p.buscaDeMi)
+    +ta("Qué me aporta "+EL(p),"pl_meAporta",p.meAporta)
+    +ta("Qué necesito de "+EL(p)+" (el sí que busco)","pl_necesito",p.necesito)
+    +ta("Qué busca "+EL(p)+" que yo le aporte","pl_buscaDeMi",p.buscaDeMi)
     +ta("Qué problema suyo resuelvo","pl_problema",p.problema)
     +'</div>'
-    +ta("De qué podrá presumir él si sale bien","pl_presume",p.presume)
+    +ta("De qué podrá presumir "+EL(p)+" si sale bien","pl_presume",p.presume)
     +ta("Un gesto que le pueda hacer y me cueste tiempo","pl_gesto",p.gesto)
     +ta("Su cebo"+(c&&!p.cebo?" (sugerido: "+esc(c)+")":""),"pl_cebo",p.cebo)
     +'</fieldset>';
@@ -646,6 +679,37 @@ function openMe(){
   };
 }
 
+function ultimaConv(p){
+  var n=(p.notas||[])[0];
+  if(!n) return '<div class="conv vacia">Sin conversaciones anotadas</div>';
+  var dias=daysBetween(parseDate(n.d)||today(),today());
+  var cuando = dias<=0?"hoy":(dias===1?"ayer":"hace "+dias+" d");
+  var txt=n.t.length>110?n.t.slice(0,110)+"\u2026":n.t;
+  return '<div class="conv"><b>'+esc(cuando)+'</b> '+esc(txt)+'</div>';
+}
+function openNota(id,ev){
+  if(ev){ ev.stopPropagation(); }
+  var p=ensure(byId(id)); if(!p) return;
+  var h='<h2>Conversación con '+esc(p.nombre)+'</h2>'
+    +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 12px">Lo que te contó, con sus palabras. Dos líneas valen más que una memoria buena.</p>'
+    +'<div class="cols"><div class="fld"><label>Fecha</label><input type="date" id="nt_fecha" value="'+todayStr()+'"></div>'
+    +'<div class="fld"><label>Marcar como último contacto</label><select id="nt_uc"><option value="si">Sí</option><option value="no">No</option></select></div></div>'
+    +'<div class="fld"><label>Qué me contó</label><textarea id="nt_txt" style="min-height:110px" placeholder="Ej.: me contó que su hija empieza el instituto y que está agobiado con la mudanza"></textarea></div>'
+    +'<div class="notes" style="max-height:220px">'+notesHTML(p)+'</div>'
+    +'<div class="modal-actions"><button class="btn" onclick="openEdit(\''+p.id+'\')">Abrir ficha</button>'
+    +'<button class="btn" id="cancel">Cancelar</button><button class="btn primary" id="ok">Guardar</button></div>';
+  showModal(h);
+  document.getElementById("cancel").onclick=closeModal;
+  document.getElementById("ok").onclick=function(){
+    var t=document.getElementById("nt_txt").value.trim();
+    if(!t){ closeModal(); return; }
+    var f=document.getElementById("nt_fecha").value||todayStr();
+    p.notas.unshift({d:f,t:t});
+    if(document.getElementById("nt_uc").value==="si") p.ultimoContacto=f;
+    save(); closeModal(); renderAll(); toast("Conversación anotada");
+  };
+}
+
 /* ---------- citas ---------- */
 function renderCitas(){
   var el=document.getElementById("citas"),t=today(),items=[];
@@ -705,6 +769,18 @@ function renderAgenda(){
   if(sinPlan.length){
     h+='<div class="sec-title">Sin plan definido</div>';
     h+=sinPlan.map(function(p){ return rowHTML(p,"Falta el intercambio","no has escrito qué necesitas de él"); }).join("");
+  }
+  var conv=[];
+  filtered().forEach(function(p){ (p.notas||[]).forEach(function(n){ conv.push({p:p,n:n}); }); });
+  conv.sort(function(a,b){ return (b.n.d||"").localeCompare(a.n.d||""); });
+  if(conv.length){
+    h+='<div class="sec-title">Últimas conversaciones</div>';
+    h+=conv.slice(0,15).map(function(x){
+      return '<div class="row"><div class="av" style="background:'+colorOf(x.p)+'">'+esc(initials(x.p.nombre))+'</div>'
+        +'<div class="grow" onclick="openNota(\''+x.p.id+'\')"><div style="font-weight:600">'+esc(x.p.nombre)+'</div>'
+        +'<div style="font-size:12.5px;color:var(--muted)">'+esc(x.n.t.length>150?x.n.t.slice(0,150)+"\u2026":x.n.t)+'</div></div>'
+        +'<div class="when">'+esc(fmtDate(x.n.d))+'</div></div>';
+    }).join("");
   }
   el.innerHTML=h;
 }
@@ -858,9 +934,11 @@ function buildGuion(p){
   if(!abrir.length) abrir.push("Abre preguntando por algo suyo, no por ti: cómo le ha ido en "+(lower1(p.empleo)||"lo suyo")+".");
   g.abrir=abrir;
   var quiere=[];
-  if(p.exito) quiere.push("Para él, ganar es: "+p.exito);
+  if(p.exito) quiere.push("Para "+EL(p)+", ganar es: "+p.exito);
   topMots(p).forEach(function(m){ quiere.push(m.lb+(m.t?": "+m.t:"")+(m.n===3?" (lo que más le mueve)":"")); });
   if(p.preocupa) quiere.push("Le quita el sueño: "+p.preocupa);
+  if(p.admirado) quiere.push("Querría que le admiraran por: "+p.admirado);
+  if(p.importante) quiere.push("Le hace sentir importante: "+p.importante);
   if(p.presume) quiere.push("Si sale bien, podrá presumir de: "+p.presume);
   if(!quiere.length) quiere.push("Todavía no sabes en qué quiere tener éxito. Esa es la información más valiosa: hoy escucha para averiguarlo.");
   g.quiere=quiere;
@@ -877,12 +955,15 @@ function buildGuion(p){
   var pre=[];
   if(p.exito) pre.push("¿Qué te falta para llegar a "+lower1(p.exito)+"?");
   if(p.empleo) pre.push("¿Cómo empezaste en "+(lower1(p.sector||p.empleo))+"? ¿Qué te enganchó?");
-  if(p.problema||p.preocupa) pre.push("¿Cómo lo estás llevando con "+lower1(p.problema||p.preocupa)+"?");
+  if(p.problema||p.preocupa){
+    pre.push("¿Cómo lo estás llevando con "+lower1(p.problema||p.preocupa)+"?");
+    pre.push("¿Qué necesitarías tú para que eso se solucionara?");
+  }
   if(p.hijos) pre.push("¿Qué tal le va a "+splitList(p.hijos)[0]+"?");
   if(p.aficiones) pre.push("¿Cómo te dio por "+lower1(splitList(p.aficiones)[0]||"eso")+"?");
   pre.push("¿Qué es lo que más te está costando ahora mismo?");
   pre.push("Si te saliera bien este año, ¿qué habría cambiado?");
-  g.preguntas=pre.slice(0,6);
+  g.preguntas=pre.slice(0,7);
   var ayuda=[];
   if(p.ayuda) ayuda.push(p.ayuda);
   if(p.buscaDeMi) ayuda.push("Lo que espera de ti: "+p.buscaDeMi);
@@ -916,17 +997,40 @@ function buildGuion(p){
   ges.push("Que te cueste tiempo, energ\u00eda o generosidad. Un favor de una tarde vale m\u00e1s que diez mensajes de \u00e1nimo.");
   ges.push("Y si le admiras por algo de verdad, d\u00edselo delante de alguien que le importe: la admiraci\u00f3n en p\u00fablico es la que cuenta.");
   g.gesto=ges;
+  var tema = p.fascina || splitList(p.aficiones)[0] || splitList(p.temas)[0] || p.deportes || "";
+  var reac=[];
+  reac.push(tema
+    ? "Cuando salga "+lower1(tema)+": «¡Qu\u00e9 interesante! Te envidio, siempre he querido y nunca he podido. Cu\u00e9ntame m\u00e1s»."
+    : "Cuando saque un tema suyo: «¡Qu\u00e9 interesante! Te envidio, siempre he querido y nunca he podido. Cu\u00e9ntame m\u00e1s».");
+  reac.push("Y despu\u00e9s c\u00e1llate. Escucha absorto, con admiraci\u00f3n de verdad, no esperando tu turno para hablar.");
+  reac.push("Pide m\u00e1s detalle dos veces antes de contar nada tuyo. La segunda pregunta es la que le hace sentir interesante.");
+  reac.push("Si te cuenta un problema o un bloqueo: «\u00bfqu\u00e9 necesitar\u00edas t\u00fa para que esto se solucionara?». Le pones a construir la soluci\u00f3n en vez de a quejarse, y la idea acaba siendo suya.");
+  g.reaccion=reac;
+  var desp=[];
+  desp.push("«Me has ense\u00f1ado un mont\u00f3n y he disfrutado mucho», dicho en serio y sobre algo concreto de lo que te cont\u00f3.");
+  desp.push(tema
+    ? "«Me encantar\u00eda hacer algo relacionado con "+lower1(tema)+" contigo»: propon la actividad, no la insin\u00fces."
+    : "Propón una actividad concreta relacionada con lo suyo. No la insinúes: dila.");
+  desp.push("Querer volver a verle. Y volver a verle: la diferencia entre caer bien y tener un amigo es la segunda vez.");
+  g.despedida=desp;
+  var mal=[];
+  mal.push("No critiques. Di que eso no parece propio de "+SU(p)+" nivel habitual: «me extra\u00f1a en ti, que sueles cuidar mucho esto».");
+  mal.push("Le dejas el list\u00f3n alto y "+EL(p)+" se esmera para volver a estar a la altura. Una cr\u00edtica directa solo produce justificaciones, aunque tenga toda la raz\u00f3n del mundo.");
+  mal.push("Nunca delante de nadie. En p\u00fablico solo se reconoce; lo otro, a solas.");
+  mal.push("Y despu\u00e9s d"+(esF(p)?"ale":"ale")+" por hecho que lo va a corregir. La gente tiende a comportarse como el papel que le adjudicas.");
+  g.mal=mal;
   var rec=[];
   if(p.logros) rec.push("Concreto y verificable: "+p.logros);
   if(p.empleo) rec.push("Reconócele algo específico de su trabajo que hayas visto tú, no algo genérico.");
   rec.push("Elogia el hecho, no la persona. «Cómo resolviste lo del cliente el mes pasado» sirve; «eres un crack» no dice nada.");
+  rec.push("Si te critica algo tuyo, agrad\u00e9ceselo de verdad: «gracias por dec\u00edrmelo, seguro que le pasa a m\u00e1s gente y nadie se ha dado cuenta». Reconoces su criterio y te llevas informaci\u00f3n que nadie m\u00e1s te va a dar.");
   g.reconocer=rec;
   var ev=[];
   if(p.evitar) ev.push(p.evitar);
   if(fb&&fb.nofunciono) ev.push("La última vez no funcionó: "+fb.nofunciono);
   ev.push("No le corrijas ni le muestres frustración: se justificará aunque sepa que no tiene razón.");
-  ev.push("No hables de ti más de lo que él hable de él.");
-  ev.push("No cierres tú la idea: que la remate él y luego reconóceselo.");
+  ev.push("No hables de ti más de lo que "+EL(p)+" hable de "+(esF(p)?"ella":"él")+".");
+  ev.push("No cierres tú la idea: que la remate "+EL(p)+" y luego reconóceselo.");
   g.evitar=ev;
   return g;
 }
@@ -939,10 +1043,13 @@ function openGuion(id){
     ["El cebo y el terreno",g.cebo],
     ["Su gente",g.gente],
     ["Temas que le encienden",g.temas],
-    ["Preguntas para que hable él",g.preguntas],
+    ["Cuando hable de lo suyo",g.reaccion],
+    ["Preguntas para que hable "+EL(p),g.preguntas],
     ["Cómo puedes ayudarle a conseguirlo",g.ayuda],
     ["Un gesto que cueste tiempo",g.gesto],
     ["Reconocimiento (concreto, nunca vacío)",g.reconocer],
+    ["Si algo sale mal",g.mal],
+    ["Al despedirte",g.despedida],
     ["Qué evitar",g.evitar]
   ];
   var h='<h2>Guión — '+esc(p.nombre)+'</h2>'
@@ -1045,6 +1152,117 @@ function openFeedback(pid,eid){
   };
 }
 
+/* ---------- hipotesis ---------- */
+function hipotesis(p){
+  var t=((p.empleo||"")+" "+(p.sector||"")+" "+(p.empresa||"")).toLowerCase();
+  var af=((p.aficiones||"")+" "+(p.temas||"")+" "+(p.fascina||"")+" "+(p.deportes||"")+" "+(p.musica||"")).toLowerCase();
+  var tiene=function(l){ return l.some(function(x){ return t.indexOf(x)>=0; }); };
+  var tieneAf=function(l){ return l.some(function(x){ return af.indexOf(x)>=0; }); };
+  var E=[],A=[],I=[];
+  if(tiene(["comercial","ventas","cuenta","selecci","recruit"])){
+    E.push("Cerrar lo que tiene entre manos y que se le note el número");
+    A.push("Por su olfato: que se reconozca que vio antes que nadie dónde estaba la oportunidad");
+    I.push("Que le pidan opinión antes de decidir, no después");
+  }
+  if(tiene(["director","jefe","manager","socio","respons","lead"])){
+    E.push("Que su equipo entregue y que se vea que es su equipo");
+    A.push("Por su criterio, no por su cargo. Quiere que se le consulte, no que se le obedezca");
+    I.push("Que se le trate como el que sabe del tema, no como el que firma");
+  }
+  if(tiene(["ingenier","técnic","tecnic","inform","program","arquitect"])){
+    E.push("Resolver bien algo difícil, aunque nadie de fuera entienda la dificultad");
+    A.push("Por hacerlo bien de verdad: que alguien que entiende reconozca el trabajo fino");
+    I.push("Que le pregunten cómo se hace, en vez de decirle cómo hacerlo");
+  }
+  if(tiene(["profes","maestr","educa","docente"])){
+    E.push("Que a sus alumnos les vaya bien y que se note que pasó por ahí");
+    A.push("Por su manera de explicar y por lo que deja en la gente");
+    I.push("Que le pregunten por su materia con interés real");
+  }
+  if(tiene(["polic","bomber","sanitar","enferm","médic","medic"])){
+    E.push("Hacer bien un trabajo que casi nadie ve, y llegar entero a casa");
+    A.push("Por el temple: que se reconozca lo que aguanta, no lo que cuenta");
+    I.push("Que se le pregunte por su trabajo sin morbo y sin tópicos");
+  }
+  if(tiene(["autón","autonom","fundador","propio","emprend","cofund"])){
+    E.push("Que el negocio se sostenga solo y poder decir que lo levantó él" + (esF(p)?"":""));
+    A.push("Por haberse lanzado cuando lo cómodo era no hacerlo");
+    I.push("Que le pregunten cómo empezó: es la historia que más le gusta contar");
+  }
+  if(tiene(["jubil","pensio"])){
+    E.push("Seguir siendo útil y que se le siga necesitando para algo");
+    A.push("Por lo que sacó adelante en su día, que casi nadie le reconoce ya");
+    I.push("Que se le pida ayuda o consejo, aunque no haga falta");
+  }
+  if(p.hijos){
+    E.push("Que a "+(p.hijos.split(/[,;y]/)[0]||"sus hijos").trim()+" le vaya bien: su éxito hoy pasa por ahí");
+    A.push("Como padre o madre: que se reconozca lo bien que lo está haciendo con ellos");
+    I.push("Que le pregunten por sus hijos por su nombre, no «qué tal los niños»");
+  }
+  if(tieneAf(["música","musica","toca","grupo","band"])){
+    A.push("Por su música: es donde se juega el amor propio de verdad");
+    E.push("Que su música llegue a alguien y que se le tome en serio como músico");
+  }
+  if(tieneAf(["cocin","comida","restaur"])){
+    A.push("Por cómo cocina: es lo que hace mejor y lo sabe");
+    I.push("Pedirle una receta suya y hacerla. Y luego contárselo");
+  }
+  if(tieneAf(["monta","pesca","bici","correr","maratón","maraton","crossfit","gimnas","pádel","padel","fútbol","futbol"])){
+    A.push("Por su constancia con lo suyo: casi nadie le pregunta y le encantaría contarlo");
+    E.push("Superarse en lo suyo, aunque sea sin público");
+  }
+  if(p.tipo==="familiar"){
+    I.push("Sentir que cuentas con "+EL(p)+" y que no eres tú quien siempre decide");
+    A.push("Por lo que ha sostenido en la familia sin que nadie se lo agradezca en voz alta");
+  }
+  if(p.tipo==="conocido"){
+    I.push("Que te acuerdes de su nombre y de algo que te contó la vez anterior");
+    E.push("Todavía no lo sabes. Esa es la primera pregunta que tienes que colocar");
+    A.push("Aún no lo sabes. Escucha de qué habla cuando se le ilumina la cara");
+  }
+  if(!E.length) E.push("Todavía no lo sabes. Es lo primero que hay que averiguar");
+  if(!A.length) A.push("Aún no lo sabes: mira de qué habla cuando nadie le pregunta");
+  if(!I.length) I.push("Que se le escuche sin prisa y que se recuerde lo que dijo");
+  var uniq=function(a){ var s={},r=[]; a.forEach(function(x){ if(!s[x]){s[x]=1;r.push(x);} }); return r.slice(0,5); };
+  return {exito:uniq(E), admirado:uniq(A), importante:uniq(I)};
+}
+function abrirProponer(){
+  var tmp={tipo:document.getElementById("f_tipo")?document.getElementById("f_tipo").value:"amigo",
+    genero:document.getElementById("f_genero")?document.getElementById("f_genero").value:"",
+    empleo:(document.getElementById("f_empleo")||{}).value||"",
+    empresa:(document.getElementById("f_empresa")||{}).value||"",
+    sector:(document.getElementById("f_sector")||{}).value||"",
+    hijos:(document.getElementById("f_hijos")||{}).value||"",
+    aficiones:(document.getElementById("f_aficiones")||{}).value||"",
+    temas:(document.getElementById("f_temas")||{}).value||"",
+    fascina:(document.getElementById("f_fascina")||{}).value||"",
+    deportes:(document.getElementById("f_deportes")||{}).value||"",
+    musica:(document.getElementById("f_musica")||{}).value||""};
+  var hp=hipotesis(tmp);
+  var caja=document.getElementById("cajaHip");
+  if(!caja){
+    caja=document.createElement("div"); caja.id="cajaHip";
+    document.getElementById("proponer").parentNode.insertBefore(caja,document.getElementById("proponer").nextSibling);
+  }
+  var bloque=function(tit,campo,arr){
+    return '<div style="margin-top:10px"><b style="font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">'+tit+'</b><div class="tags" style="margin-top:4px">'
+      +arr.map(function(x){ return '<button type="button" class="tag hip" data-campo="'+campo+'" data-txt="'+esc(x)+'" style="border:0;cursor:pointer;text-align:left">'+esc(x)+'</button>'; }).join("")+'</div></div>';
+  };
+  caja.innerHTML='<div class="infobox" style="margin-top:10px"><b>Hipótesis, no datos.</b> Pulsa la que te encaje para pegarla en el campo, y confírmala preguntando en cuanto puedas.</div>'
+    +bloque("En qué querría tener éxito","exito",hp.exito)
+    +bloque("Por qué querría sentirse admirado","admirado",hp.admirado)
+    +bloque("Qué le hace sentir importante","importante",hp.importante);
+  caja.querySelectorAll(".hip").forEach(function(b){
+    b.onclick=function(){
+      var el=document.getElementById("f_"+b.getAttribute("data-campo"));
+      if(!el) return;
+      var v=b.getAttribute("data-txt");
+      el.value = el.value.trim() ? el.value.trim()+" · "+v : v;
+      b.style.opacity=".45";
+    };
+  });
+}
+
 /* ---------- editor ---------- */
 function openEdit(id){
   var p=id?ensure(byId(id)):newPerson(),isNew=!id;
@@ -1053,12 +1271,24 @@ function openEdit(id){
     .sort(function(a,b){return (a.nombre||"").localeCompare(b.nombre||"");});
   var h='<h2>'+(isNew?"Nueva persona":esc(p.nombre||"Ficha"))+'</h2>'
     +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 14px">Rellena solo lo que sepas. Vuelve cuando descubras algo nuevo.</p>';
+  h+='<fieldset style="border-color:var(--accent)"><legend style="color:var(--accent)">LO ESENCIAL — con esto ya sirve</legend>'
+    +'<p style="color:var(--muted);font-size:12px;margin:0 0 10px">Todo el mundo quiere sentirse <b>importante</b>, <b>tener éxito</b>, sentirse <b>admirado</b> y que <b>recuerden su nombre</b>. Mientras habla, preg\u00fantate esto y anota lo que saques. Lo dem\u00e1s puede esperar.</p>'
+    +'<div class="cols">'+fld("Nombre","nombre",p.nombre)+fld("C\u00f3mo le gusta que le llamen","apodo",p.apodo)+'</div>'
+    +fld("¿En qué quiere tener éxito?","exito",p.exito,"ta")
+    +fld("¿Por qué le gustaría sentirse admirado, y por quién?","admirado",p.admirado,"ta")
+    +fld("¿Qué le hace sentir importante?","importante",p.importante,"ta")
+    +'<button class="btn" type="button" id="proponer">Proponer hipótesis según su perfil</button>'
+    +'<p style="color:var(--muted);font-size:11.5px;margin:8px 0 0">Lo que proponga son conjeturas para confirmar preguntando, nunca datos. Si te las crees sin comprobarlas, te construyes una persona que no existe.</p>'
+    +'</fieldset>';
   h+='<fieldset><legend>Básico</legend><div class="cols">'
     +'<div class="fld"><label>Categoría</label><select id="f_tipo">'
     +TIPOS.map(function(t){return '<option value="'+t[0]+'"'+(p.tipo===t[0]?" selected":"")+'>'+t[1]+'</option>';}).join("")
     +'</select></div>'
+    +'<div class="fld"><label>Trato (para los pronombres del guión)</label><select id="f_genero">'
+    +'<option value=""'+(!p.genero?" selected":"")+'>Sin marcar</option>'
+    +'<option value="m"'+(p.genero==="m"?" selected":"")+'>Él</option>'
+    +'<option value="f"'+(p.genero==="f"?" selected":"")+'>Ella</option></select></div>'
     +fld("Círculo (equipo, barrio, familia…)","grupo",p.grupo)
-    +fld("Nombre","nombre",p.nombre)+fld("Apodo / cómo le llamas","apodo",p.apodo)
     +fld("Ciudad","ciudad",p.ciudad)+fld("Sector / ámbito","sector",p.sector)+'</div>'
     +fld("Cómo os conocisteis","comoConocimos",p.comoConocimos,"ta")+'</fieldset>';
   h+='<fieldset><legend>Familia y trabajo</legend><div class="cols">'
@@ -1066,7 +1296,6 @@ function openEdit(id){
     +fld("Empleo / puesto","empleo",p.empleo)+fld("Empresa","empresa",p.empresa)+'</div>'
     +fld("Otros datos de familia","familia",p.familia,"ta")+'</fieldset>';
   h+='<fieldset><legend>Lo que persigue</legend>'
-    +fld("En qué quiere tener éxito","exito",p.exito,"ta")
     +fld("Qué le preocupa","preocupa",p.preocupa,"ta")
     +fld("Qué le fascina","fascina",p.fascina,"ta")
     +fld("Cómo puedo ayudarle a conseguirlo","ayuda",p.ayuda,"ta")
@@ -1124,6 +1353,7 @@ function openEdit(id){
     document.getElementById("newNote").value="";
     document.getElementById("notes").innerHTML=notesHTML(p);
   };
+  var pr=document.getElementById("proponer"); if(pr) pr.onclick=abrirProponer;
   document.getElementById("cancel").onclick=closeModal;
   document.getElementById("ok").onclick=function(){ commit(p,isNew); };
   var d=document.getElementById("del");
@@ -1144,10 +1374,11 @@ function fld(label,key,val,type){
 }
 function commit(p,isNew){
   ["nombre","apodo","ciudad","grupo","sector","comoConocimos","pareja","hijos","familia","empleo","empresa",
-   "exito","preocupa","fascina","ayuda","logros","quienesImportan","queQuierenLosSuyos","gustosDeLosSuyos","gesto",
+   "exito","admirado","importante","preocupa","fascina","ayuda","logros","quienesImportan","queQuierenLosSuyos","gustosDeLosSuyos","gesto",
    "aficiones","deportes","musica","comida","temas","evitar","cumple","aniversario","ultimoContacto"]
    .forEach(function(k){ var e=document.getElementById("f_"+k); if(e) p[k]=e.value.trim(); });
   p.tipo=document.getElementById("f_tipo").value;
+  var gz=document.getElementById("f_genero"); if(gz) p.genero=gz.value;
   p.frecuencia=parseInt(document.getElementById("f_frecuencia").value,10)||90;
   MOTS.forEach(function(m){ var e=document.getElementById("m_"+m[0]); if(e) p.mot[m[0]].t=e.value.trim(); });
   p.conexiones=Array.prototype.slice.call(document.querySelectorAll(".cx:checked")).map(function(c){return c.value;});
@@ -1190,33 +1421,26 @@ function importJSON(file){
   };
   r.readAsText(file);
 }
-function demo(){
-  var a=newPerson(); a.tipo="amigo"; a.nombre="Marta Ruiz"; a.grupo="Senderismo"; a.ciudad="Valencia";
-  a.empleo="Fisioterapeuta"; a.empresa="Clínica Sur"; a.sector="salud";
-  a.aficiones="senderismo, cerámica, novela negra"; a.comida="arroz al horno, vermut"; a.hijos="Lucas (9)";
-  a.exito="abrir su propia consulta antes de dos años"; a.preocupa="el alquiler del local le come el margen";
-  a.fascina="la cerámica japonesa"; a.ayuda="conozco a un gestor que le puede cuadrar los números";
-  a.logros="sacó adelante la clínica ella sola en plena crisis";
-  a.cumple="1990-09-14"; a.ultimoContacto="2026-05-02"; a.frecuencia=60;
-  a.mot.hijos={n:3,t:"quiere cambiarlo a un colegio con más deporte"};
-  a.mot.importancia={n:2,t:"le gusta que le pidan consejo profesional"};
-  a.notas=[{d:"2026-05-02",t:"Se apuntó a un curso de cerámica los jueves."}];
-  var b=newPerson(); b.tipo="profesional"; b.nombre="Javier Soler"; b.grupo="Selección"; b.ciudad="Valencia";
-  b.empleo="Consultor de selección"; b.empresa="Agencia"; b.sector="salud, industria";
-  b.aficiones="pádel, vinos"; b.deportes="Valencia CF";
-  b.exito="cerrar el año como número uno de su equipo"; b.problema="lleva tres meses sin cubrir una vacante difícil";
-  b.presume="presentar al candidato que cierra la vacante que nadie cubría";
-  b.meAporta="acceso directo al cliente final"; b.necesito="que me presente como su candidato";
-  b.buscaDeMi="un perfil que encaje y no se le caiga a los tres meses";
-  b.cumple="1985-02-03"; b.ultimoContacto="2026-07-20";
-  b.mot.dinero={n:3,t:"su comisión depende de cerrar esta posición"};
-  b.mot.importancia={n:3,t:"quiere que le reconozcan delante de su jefe"};
-  var c=newPerson(); c.tipo="familiar"; c.nombre="Nuria Peña"; c.grupo="Familia"; c.ciudad="Valencia";
-  c.empleo="Profesora"; c.aficiones="huerto urbano, coros"; c.cumple="1978-11-27";
-  c.mot.salud={n:3,t:"cuida a su madre, muy pendiente de la salud"};
-  a.conexiones=[b.id]; b.conexiones=[a.id];
-  b.encuentros=[{id:uid(),fecha:todayStr(),lugar:"café Ausiàs",motivo:"presentar candidatura",hecho:false,fb:null}];
-  state.people=[a,b,c]; save(); renderAll();
+/* ---------- instalar como aplicacion ---------- */
+var promptInstalar=null;
+window.addEventListener("beforeinstallprompt",function(e){
+  e.preventDefault(); promptInstalar=e;
+  var b=document.getElementById("instalar"); if(b) b.style.display="";
+});
+window.addEventListener("appinstalled",function(){
+  promptInstalar=null;
+  var b=document.getElementById("instalar"); if(b) b.style.display="none";
+  try{ toast("Instalada. Ya la tienes con su propio icono."); }catch(e){}
+});
+function instalarApp(){
+  if(!promptInstalar){
+    alert("Este navegador no ofrece la instalación ahora mismo.\n\nEn Chrome de escritorio: icono de instalar en la barra de direcciones, o menú ⋮ → Guardar y compartir → Instalar página como aplicación.\nEn Android: menú ⋮ → Añadir a pantalla de inicio.");
+    return;
+  }
+  promptInstalar.prompt();
+  promptInstalar.userChoice.then(function(r){
+    if(r && r.outcome==="accepted"){ var b=document.getElementById("instalar"); if(b) b.style.display="none"; }
+  }).catch(function(){});
 }
 
 /* ---------- aviso flotante ---------- */
@@ -1229,6 +1453,10 @@ function toast(t){
 
 /* ---------- sincronizacion con carpeta ---------- */
 var FS={handle:null,timer:null};
+function hoyISO(){ return new Date().toISOString().slice(0,10); }
+function syncMeta(){ try{ return JSON.parse(localStorage.getItem("mapaAmigos.sync")||"{}"); }catch(e){ return {}; } }
+function setSyncMeta(o){ try{ var m=syncMeta(); for(var k in o) m[k]=o[k]; localStorage.setItem("mapaAmigos.sync",JSON.stringify(m)); }catch(e){} }
+function savedLocal(){ try{ return (JSON.parse(localStorage.getItem(KEY)||"{}").saved)||""; }catch(e){ return ""; } }
 function payload(){ return JSON.stringify({people:state.people,me:state.me,v:3,saved:new Date().toISOString()},null,2); }
 function setSync(t){ var e=document.getElementById("syncSt"); if(e) e.textContent=t||""; FS.msg=t||""; }
 function fsSoportado(){ return typeof window.showDirectoryPicker==="function"; }
@@ -1254,15 +1482,15 @@ function permiso(hd,pedir){
 }
 function sincronizarYa(){
   if(FS.handle){
-    escribirCarpeta().then(function(ok){ toast(ok?"Guardado en la carpeta":"No he podido guardar. Abre las opciones con \u22ef"); });
+    escribirCarpeta().then(function(ok){ toast(ok?"Guardado en la carpeta":"No he podido guardar. Abre las opciones con ⋯"); });
     return;
   }
   if(fsSoportado()){ conectarCarpeta(); return; }
   enviarArchivo();
 }
 function conectarCarpeta(){
-  if(!fsSoportado()){ alert("Este navegador no puede escribir en carpetas. En el m\u00f3vil usa «Enviar a OneDrive»."); return; }
-  toast("Elige la carpeta App Amigos dentro de OneDrive");
+  if(!fsSoportado()){ alert("Este navegador no puede escribir en carpetas. En el móvil usa el botón Sincronizar y comparte con Drive."); return; }
+  toast("Elige la carpeta App Amigos dentro de tu Drive");
   window.showDirectoryPicker({mode:"readwrite",id:"mapaAmigos"}).then(function(hd){
     FS.handle=hd; return idbSet("dir",hd);
   }).then(function(){ return leerArchivo(); })
@@ -1291,30 +1519,102 @@ function leerArchivo(){
     .catch(function(){ return null; });
 }
 function escribirArchivo(){
+  var txt=payload(), marca="";
+  try{ marca=JSON.parse(txt).saved; }catch(e){}
   return FS.handle.getFileHandle("mapa-amigos.json",{create:true})
     .then(function(f){ return f.createWritable(); })
-    .then(function(w){ return w.write(payload()).then(function(){ return w.close(); }); })
+    .then(function(w){ return w.write(txt).then(function(){ return w.close(); }); })
     .then(function(){
+      setSyncMeta({ultimaEscritura:marca});
       setSync("guardado "+new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}));
-      return true;
+      revisarAvisos();
+      return copiaDiaria(txt).then(function(){ return true; });
     });
+}
+function copiaDiaria(txt){
+  if(!FS.handle) return Promise.resolve();
+  if(syncMeta().copiaDia===hoyISO()) return Promise.resolve();
+  return FS.handle.getFileHandle("copia-"+hoyISO()+".json",{create:true})
+    .then(function(f){ return f.createWritable(); })
+    .then(function(w){ return w.write(txt).then(function(){ return w.close(); }); })
+    .then(function(){ setSyncMeta({copiaDia:hoyISO()}); return limpiarCopias(); })
+    .catch(function(){});
+}
+async function limpiarCopias(){
+  try{
+    if(!FS.handle || !FS.handle.values) return;
+    var nombres=[];
+    for await (var e of FS.handle.values()){
+      if(e.kind==="file" && /^copia-\d{4}-\d{2}-\d{2}\.json$/.test(e.name)) nombres.push(e.name);
+    }
+    nombres.sort();
+    while(nombres.length>7){
+      var n=nombres.shift();
+      try{ await FS.handle.removeEntry(n); }catch(e2){}
+    }
+  }catch(e){}
+}
+function copiaSeguridad(d){
+  if(!FS.handle||!d) return Promise.resolve();
+  return FS.handle.getFileHandle("mapa-amigos-anterior.json",{create:true})
+    .then(function(f){ return f.createWritable(); })
+    .then(function(w){ return w.write(JSON.stringify(d,null,2)).then(function(){ return w.close(); }); })
+    .catch(function(){});
+}
+function faltantes(d){
+  if(!d||!d.people) return [];
+  var mios={}; state.people.forEach(function(p){ mios[p.id]=1; });
+  var nom={}; state.people.forEach(function(p){ if(p.nombre) nom[p.nombre.trim().toLowerCase()]=1; });
+  return d.people.filter(function(q){
+    return !mios[q.id] && !(q.nombre && nom[q.nombre.trim().toLowerCase()]);
+  });
 }
 function escribirCarpeta(forzar){
   if(!FS.handle) return Promise.resolve(false);
   return permiso(FS.handle,true).then(function(ok){
     if(!ok){ setSync("permiso denegado"); return false; }
-    if(!forzar && !state.people.length){
-      return leerArchivo().then(function(d){
-        if(d && d.people.length){
+    return leerArchivo().then(function(d){
+      if(!forzar && d){
+        if(!state.people.length && d.people.length){
           setSync("no sobrescrito");
-          toast("La carpeta tiene "+d.people.length+" fichas y esta copia está vacía. No la he tocado. Usa \u22ef \u2192 Traer de la carpeta.");
+          toast("La carpeta tiene "+d.people.length+" fichas y esta copia está vacía. No la he tocado. Usa ⋯ → Traer de la carpeta.");
           return false;
         }
-        return escribirArchivo();
-      });
-    }
-    return escribirArchivo();
+        var f=faltantes(d);
+        if(f.length){
+          setSync("no sobrescrito");
+          avisoFaltan(d,f);
+          return false;
+        }
+      }
+      return copiaSeguridad(d).then(escribirArchivo);
+    });
   }).catch(function(){ setSync("error al guardar"); return false; });
+}
+function avisoFaltan(d,f){
+  var h='<h2>Espera: perderías fichas</h2>'
+    +'<div class="warnbox">En la carpeta hay <b>'+f.length+'</b> ficha'+(f.length>1?'s':'')+' que no está'+(f.length>1?'n':'')+' en esta copia:<br><b>'
+    +f.map(function(q){ return esc(q.nombre||"(sin nombre)"); }).join(", ")+'</b><br><br>Si guardo ahora, desaparecería'+(f.length>1?'n':'')+'. No he tocado nada.</div>'
+    +'<fieldset><legend>Lo sensato</legend>'
+    +'<p style="font-size:13px;margin:0 0 8px">Traigo lo que falta, lo uno con lo tuyo y después guardo. No se pierde nada de ningún lado.</p>'
+    +'<button class="btn primary" id="fx_unir">Combinar y guardar</button></fieldset>'
+    +'<fieldset><legend>Si sabes lo que haces</legend>'
+    +'<p style="font-size:13px;margin:0 0 8px">Guardar igualmente y borrar esas fichas de la carpeta. Antes dejo una copia en <code>mapa-amigos-anterior.json</code>.</p>'
+    +'<button class="btn danger" id="fx_forzar">Guardar de todas formas</button></fieldset>'
+    +'<div class="modal-actions"><button class="btn" id="cancel">Cancelar</button></div>';
+  showModal(h);
+  document.getElementById("cancel").onclick=closeModal;
+  document.getElementById("fx_unir").onclick=function(){
+    var antes=state.people.length;
+    state.people=fusionar(state.people,d.people||[]);
+    if(d.me) Object.keys(d.me).forEach(function(k){ state.me[k]=unirTexto(state.me[k],d.me[k]); });
+    save(); renderSeg(); renderAll(); closeModal();
+    escribirCarpeta(true).then(function(){ toast("Combinado y guardado: "+antes+" → "+state.people.length+" fichas"); });
+  };
+  document.getElementById("fx_forzar").onclick=function(){
+    if(!confirm("Se borrarán de la carpeta. ¿Seguro?")) return;
+    closeModal(); escribirCarpeta(true).then(function(){ toast("Guardado. La copia anterior está en mapa-amigos-anterior.json"); });
+  };
 }
 function programarSync(){
   if(!FS.handle) return;
@@ -1384,13 +1684,13 @@ function elegirComo(d,origen){
   var mios=state.people.length;
   var h='<h2>Datos entrantes</h2>'
     +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 12px">'+esc(origen||"")+'</p>'
-    +'<div class="infobox">Traes <b>'+n+'</b> fichas. Aqu\u00ed tienes <b>'+mios+'</b>.</div>'
+    +'<div class="infobox">Traes <b>'+n+'</b> fichas. Aquí tienes <b>'+mios+'</b>.</div>'
     +'<fieldset><legend>Combinar (recomendado)</legend>'
-    +'<p style="font-size:13px;margin:0 0 8px">Suma las dos copias. Las personas que est\u00e9n en las dos se unen campo a campo, sin perder nada de ninguna; las notas, citas y pasos se acumulan. Puede quedar alg\u00fan texto repetido, y eso se limpia en un minuto.</p>'
+    +'<p style="font-size:13px;margin:0 0 8px">Suma las dos copias. Las personas que estén en las dos se unen campo a campo, sin perder nada de ninguna; las notas, citas y pasos se acumulan.</p>'
     +'<button class="btn primary" id="fu_combinar">Combinar las dos</button></fieldset>'
     +'<fieldset><legend>Sustituir</legend>'
-    +'<p style="font-size:13px;margin:0 0 8px">Tira lo de aqu\u00ed y deja solo lo que llega. \u00danicamente si sabes que esta copia est\u00e1 vieja.</p>'
-    +'<button class="btn danger" id="fu_sustituir">Sustituir lo m\u00edo</button></fieldset>'
+    +'<p style="font-size:13px;margin:0 0 8px">Tira lo de aquí y deja solo lo que llega. Únicamente si sabes que esta copia está vieja.</p>'
+    +'<button class="btn danger" id="fu_sustituir">Sustituir lo mío</button></fieldset>'
     +'<div class="modal-actions"><button class="btn" id="cancel">Cancelar</button></div>';
   showModal(h);
   document.getElementById("cancel").onclick=closeModal;
@@ -1399,10 +1699,10 @@ function elegirComo(d,origen){
     state.people=fusionar(state.people,d.people||[]);
     if(d.me) Object.keys(d.me).forEach(function(k){ state.me[k]=unirTexto(state.me[k],d.me[k]); });
     save(); closeModal(); renderSeg(); renderAll();
-    toast("Combinado: "+antes+" + "+n+" \u2192 "+state.people.length+" fichas");
+    toast("Combinado: "+antes+" + "+n+" → "+state.people.length+" fichas");
   };
   document.getElementById("fu_sustituir").onclick=function(){
-    if(!confirm("Se pierde lo que tienes aqu\u00ed. \u00bfSeguro?")) return;
+    if(!confirm("Se pierde lo que tienes aquí. ¿Seguro?")) return;
     aplicarDatos(d); closeModal(); toast("Sustituido");
   };
 }
@@ -1420,17 +1720,23 @@ function restaurarCarpeta(){
       setSync("carpeta conectada");
       return leerCarpeta().then(function(d){
         if(!d||!d.saved) return;
-        var local=""; try{ local=(JSON.parse(localStorage.getItem(KEY)||"{}").saved)||""; }catch(e){}
-        if(d.saved>local && confirm("La carpeta tiene una versi\u00f3n m\u00e1s reciente ("+fmtDate(d.saved)+"). \u00bfCargarla?")) aplicarDatos(d);
+        var local=savedLocal(), m=syncMeta();
+        if(d.saved<=local) return;
+        var sinCambiosMios = !local || (m.ultimaEscritura && local<=m.ultimaEscritura);
+        if(sinCambiosMios){ aplicarDatos(d); toast("Actualizado desde la carpeta"); return; }
+        elegirComo(d,"la carpeta tiene una versión más reciente y tú tienes cambios sin guardar");
       });
     });
   }).catch(function(){});
 }
 function enviarArchivo(){
+  if(state.people.length && !confirm("Este archivo SUSTITUYE al de la carpeta.\n\nSi en el otro dispositivo has añadido gente que aquí no tienes, se perdería. Lo seguro es traer primero y enviar después.\n\n¿Envío esta copia con "+state.people.length+" fichas?")) return;
   try{
-    var file=new File([payload()],"mapa-amigos.json",{type:"application/json"});
+    var txt=payload();
+    try{ setSyncMeta({ultimoEnvio:JSON.parse(txt).saved}); }catch(e){}
+    var file=new File([txt],"mapa-amigos.json",{type:"application/json"});
     if(navigator.canShare&&navigator.canShare({files:[file]})){
-      navigator.share({files:[file],title:"Mapa de amigos"}).catch(function(){});
+      navigator.share({files:[file],title:"Mapa de amigos"}).then(function(){ revisarAvisos(); }).catch(function(){});
       return;
     }
   }catch(e){}
@@ -1439,23 +1745,23 @@ function enviarArchivo(){
 function openSync(){
   var puede=fsSoportado(), conectada=!!FS.handle;
   var h='<h2>Sincronizar</h2>'
-    +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 12px">Tus datos viven en este dispositivo. Esto los copia a la carpeta que compartes entre ordenador y m\u00f3vil.</p>'
-    +(state.people.length?'':'<div class="warnbox">Esta copia est\u00e1 vac\u00eda. Antes de sincronizar, trae tus datos: <b>Traer de la carpeta</b> o <b>Copiar o pegar datos</b>. Si sincronizas en vac\u00edo no borro nada: te aviso y paro.</div>')
+    +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 12px">Tus datos viven en este dispositivo. Esto los copia a la carpeta que compartes entre ordenador y móvil.</p>'
+    +(state.people.length?'':'<div class="warnbox">Esta copia está vacía. Antes de sincronizar, trae tus datos: <b>Traer de la carpeta</b> o <b>Copiar o pegar datos</b>. Si sincronizas en vacío no borro nada: te aviso y paro.</div>')
     +'<div id="syncInfo" class="'+(conectada?"okbox":"infobox")+'">'
-    +(conectada?"Carpeta conectada. Cada cambio se guarda solo unos segundos despu\u00e9s.":(puede?"Sin carpeta conectada todav\u00eda.":"Este navegador no puede escribir en carpetas: usa «Enviar a OneDrive» o «Copiar mis datos»."))
+    +(conectada?"Carpeta conectada. Cada cambio se guarda solo unos segundos después.":(puede?"Sin carpeta conectada todavía.":"Este navegador no puede escribir en carpetas: usa el botón de compartir o copia y pega los datos."))
     +(FS.msg?'<br><span style="color:var(--muted)">Estado: '+esc(FS.msg)+'</span>':'')+'</div>';
   if(puede){
-    h+='<fieldset><legend>Autom\u00e1tico (ordenador)</legend>'
-      +'<p style="font-size:13px;margin:0 0 8px">Elige una vez la carpeta <b>OneDrive \\ App Amigos</b> y la app escribir\u00e1 ah\u00ed <code>mapa-amigos.json</code> sola, cada vez que cambies algo. Es lo que lee tu aviso de las ma\u00f1anas.</p>'
+    h+='<fieldset><legend>Automático (ordenador)</legend>'
+      +'<p style="font-size:13px;margin:0 0 8px">Elige una vez la carpeta <b>Mi unidad → Claude → App Amigos</b> de tu Drive y la app escribirá ahí <code>mapa-amigos.json</code> sola, cada vez que cambies algo. Es lo que lee tu aviso de las mañanas.</p>'
       +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
       +'<button class="btn primary" id="sy_conectar">'+(conectada?"Cambiar carpeta":"Conectar carpeta")+'</button>'
       +(conectada?'<button class="btn" id="sy_guardar">Guardar ahora</button><button class="btn" id="sy_traer">Traer de la carpeta</button>':'')
       +'</div></fieldset>';
   }
-  h+='<fieldset><legend>M\u00f3vil</legend>'
-    +'<p style="font-size:13px;margin:0 0 8px">Manda el archivo a OneDrive (o a donde quieras) con el men\u00fa de compartir de Android. Gu\u00e1rdalo en <b>App Amigos</b> sustituyendo el anterior.</p>'
+  h+='<fieldset><legend>Móvil</legend>'
+    +'<p style="font-size:13px;margin:0 0 8px">Manda el archivo con el menú de compartir de Android y guárdalo en <b>Drive → Claude → App Amigos</b>, sustituyendo el anterior.</p>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
-    +'<button class="btn primary" id="sy_enviar">Enviar a OneDrive</button>'
+    +'<button class="btn primary" id="sy_enviar">Enviar a Drive</button>'
     +'<button class="btn" id="sy_importar">Traer un archivo</button></div></fieldset>';
   h+='<fieldset><legend>A mano</legend>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
@@ -1480,10 +1786,30 @@ function openSync(){
   document.getElementById("sy_exportar").onclick=exportJSON;
 }
 
+function revisarAvisos(){
+  var el=document.getElementById("aviso"); if(!el) return;
+  var m=syncMeta(), local=savedLocal(), msg="", ok=false;
+  if(state.people.length){
+    if(FS.handle){
+      if(local && m.ultimaEscritura && local>m.ultimaEscritura) msg="Hay cambios sin guardar en la carpeta.";
+    } else {
+      var env=m.ultimoEnvio||"";
+      if(!env) msg="Estos datos todavía no están en la carpeta compartida.";
+      else if(local>env){
+        var dias=Math.max(0,Math.round((new Date(local)-new Date(env))/86400000));
+        msg = dias>=1 ? "Llevas "+dias+" día"+(dias===1?"":"s")+" de cambios sin enviar a la carpeta." : "Tienes cambios sin enviar a la carpeta.";
+      }
+    }
+  }
+  el.innerHTML = msg
+    ? '<div class="banner'+(ok?" ok":"")+'"><span style="flex:1">'+esc(msg)+'</span><button class="btn sm" onclick="sincronizarYa()">Sincronizar ahora</button></div>'
+    : "";
+}
+
 /* ---------- pegar datos ---------- */
 function openPaste(){
   var h='<h2>Pegar datos</h2>'
-    +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 12px">Pega aqu\u00ed el contenido del archivo mapa-amigos.json. \u00datil en el m\u00f3vil, donde elegir archivos es inc\u00f3modo.</p>'
+    +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 12px">Pega aquí el contenido del archivo mapa-amigos.json. Útil en el móvil, donde elegir archivos es incómodo.</p>'
     +'<textarea id="pasteBox" style="min-height:180px" placeholder="{ &quot;people&quot;: [ ... ] }"></textarea>'
     +'<div class="modal-actions"><button class="btn" id="copyAll">Copiar mis datos</button>'
     +'<button class="btn" id="cancel">Cancelar</button><button class="btn primary" id="ok">Cargar</button></div>';
@@ -1542,7 +1868,6 @@ function renderInforme(){
     +'<div class="inf-meta">'+esc(hoy)+' · '+list.length+' de '+state.people.length+' personas · '+esc(alcance)+'</div>'
     +'<p class="lema" style="margin:-10px 0 18px">Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p>';
   if(!list.length){ el.innerHTML=h+'<p style="color:var(--muted)">No hay nadie que cumpla el filtro actual.</p>'; return; }
-  // kpis
   var t=today(), citas=0, tocaEscribir=0, cumples=0, pasosPend=0;
   list.forEach(function(p){
     (p.encuentros||[]).forEach(function(e){ var d=parseDate(e.fecha); if(!e.hecho&&d&&d>=t) citas++; });
@@ -1562,6 +1887,8 @@ function renderInforme(){
       +'<div class="inf-nom">'+esc(p.nombre||"(sin nombre)")+'</div>'
       +'<div class="inf-sub">'+esc([tipoLabel(p.tipo),p.empleo,p.empresa,p.ciudad,p.grupo].filter(Boolean).join(" · "))+'</div>';
     h+=infSec("En qué quiere tener éxito",p.exito);
+    h+=infSec("Por qué querría sentirse admirado",p.admirado);
+    h+=infSec("Qué le hace sentir importante",p.importante);
     h+=infSec("Qué le preocupa",p.preocupa);
     h+=infSec("Qué le fascina",p.fascina);
     var mots=topMots(p).map(function(m){ return m.lb+" ("+m.n+")"+(m.t?": "+m.t:""); });
@@ -1582,7 +1909,7 @@ function renderInforme(){
     if(opt.plan){
       var inter=[];
       if(p.meAporta) inter.push("Me aporta: "+p.meAporta);
-      if(p.necesito) inter.push("Necesito de él: "+p.necesito);
+      if(p.necesito) inter.push("Necesito de "+EL(p)+": "+p.necesito);
       if(p.buscaDeMi) inter.push("Busca de mí: "+p.buscaDeMi);
       if(p.problema) inter.push("Problema suyo que resuelvo: "+p.problema);
       if(p.presume) inter.push("Presumirá de: "+p.presume);
@@ -1594,8 +1921,11 @@ function renderInforme(){
     }
     if(opt.guion&&g){
       h+=infLista("Por dónde empezar",g.abrir);
-      h+=infLista("Preguntas para que hable él",g.preguntas);
+      h+=infLista("Preguntas para que hable "+EL(p),g.preguntas);
+      h+=infLista("Cuando hable de lo suyo",g.reaccion);
       h+=infLista("Cómo ayudarle",g.ayuda);
+      h+=infLista("Si algo sale mal",g.mal);
+      h+=infLista("Al despedirte",g.despedida);
       h+=infLista("Qué evitar",g.evitar);
     }
     if(opt.notas&&(p.notas||[]).length){
@@ -1624,7 +1954,7 @@ function renderAll(){
     +grupos().map(function(g){return '<option'+(g===cur?" selected":"")+'>'+esc(g)+'</option>';}).join("");
   var n=filtered().length,tot=state.people.length;
   document.getElementById("count").textContent=tot?(state.tipo?n+" de "+tot+" personas":tot+" personas"):"";
-  renderCards(); renderCitas(); renderAgenda();
+  renderCards(); renderCitas(); renderAgenda(); try{ revisarAvisos(); }catch(e){}
   if(state.tab==="mapa") buildGraph();
   if(state.tab==="informe") renderInforme();
 }
@@ -1650,6 +1980,8 @@ document.getElementById("add").onclick=function(){ openEdit(null); };
 document.getElementById("meBtn").onclick=openMe;
 document.getElementById("syncBtn").onclick=sincronizarYa;
 document.getElementById("syncOpt").onclick=openSync;
+document.getElementById("instalar").onclick=instalarApp;
+try{ if(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches){ document.getElementById("instalar").style.display="none"; } }catch(e){}
 document.getElementById("file").onchange=function(e){ if(e.target.files[0]) importJSON(e.target.files[0]); e.target.value=""; };
 ["ip_plan","ip_guion","ip_gente","ip_notas"].forEach(function(k){ document.getElementById(k).onchange=renderInforme; });
 document.getElementById("pdfBtn").onclick=function(){ renderInforme(); setTimeout(function(){ window.print(); },150); };
@@ -1663,8 +1995,8 @@ renderAll();
 lockIfNeeded();
 try{ restaurarCarpeta(); }catch(e){}
 try{ if(location.protocol==="https:"&&"serviceWorker" in navigator) navigator.serviceWorker.register("sw.js"); }catch(e){}
-window.openEdit=openEdit; window.openGuion=openGuion; window.openPlan=openPlan;
-window.openCita=openCita; window.openFeedback=openFeedback; window.demo=demo; window.openSync=openSync;
+window.openEdit=openEdit; window.openGuion=openGuion; window.openPlan=openPlan; window.borrarPersona=borrarPersona;
+window.openCita=openCita; window.openFeedback=openFeedback; window.openNota=openNota; window.sincronizarYa=sincronizarYa; window.openSync=openSync;
 </script>
 </body>
 </html>
