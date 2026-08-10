@@ -36,7 +36,7 @@ header.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-conte
 .tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .seg{display:flex;flex-wrap:wrap;gap:4px;background:#ece9e3;padding:3px;border-radius:10px;margin-bottom:12px;width:fit-content}
 .seg button{border:0;background:transparent;padding:6px 14px;border-radius:8px;color:var(--muted);font-weight:550;display:flex;align-items:center;gap:6px}
-.seg button.on{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.seg button.on{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.08);font-weight:650}
 .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
 .btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;font-weight:550}
 .btn:hover{border-color:#cfc9bf}
@@ -101,11 +101,26 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 .lvl button.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .notes{max-height:190px;overflow:auto}
 .note{border-left:2px solid var(--line);padding:2px 0 6px 10px;margin-bottom:6px;font-size:13.5px}
+.note{position:relative}
 .note b{font-size:11.5px;color:var(--muted);font-weight:550}
+.nacts{position:absolute;right:0;top:0;display:flex;gap:2px}
+.nx{border:0;background:transparent;color:#c9c3ba;cursor:pointer;font-size:12px;padding:2px 5px;border-radius:6px;line-height:1}
+.nx:hover{background:var(--accent-soft);color:var(--accent)}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
 .multi{display:flex;flex-wrap:wrap;gap:6px;border:1px solid var(--line);border-radius:8px;padding:7px;background:#fff;max-height:120px;overflow:auto}
 .multi label{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;background:#f7f6f3;border-radius:6px;padding:3px 8px;cursor:pointer}
 .multi input{width:auto}
+.vinc{margin-top:8px}
+.vbar{height:10px;border-radius:99px;background:#e7d9d3;overflow:hidden;margin-bottom:10px}
+.vbar i{display:block;height:100%;background:var(--ok)}
+.vcols{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12.5px}
+.vcols b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:5px}
+.vp{display:inline-block;border-radius:6px;padding:2px 7px;margin:0 4px 4px 0;font-size:12px}
+.vp.une{background:#eef3ef;color:#3f7d5c}
+.vp.sep{background:#fdf1ec;color:#8c3f22}
+.vvacio{color:#b0a99f;font-style:italic;font-size:12px}
+.vnota{font-size:12px;color:var(--muted);margin:8px 0 0;line-height:1.45}
+@media(max-width:640px){.vcols{grid-template-columns:1fr}}
 .g-block{margin-bottom:14px}
 .g-block h4{margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .g-block ul{margin:0;padding-left:18px}
@@ -241,6 +256,10 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
     <div id="graphBox">
       <svg id="graph"></svg>
       <div class="mapctl">
+        <select id="modoMapa" style="width:auto;padding:5px 8px;font-size:13px">
+          <option value="personas">Mapa de personas</option>
+          <option value="industrias">Mapa profesional (por sector)</option>
+        </select>
         <button class="btn sm" id="reflow">Reordenar</button>
         <label class="chip"><input type="checkbox" id="byGroup" style="width:auto" checked> unir por círculo</label>
       </div>
@@ -301,7 +320,7 @@ function esF(p){ return p&&p.genero==="f"; }
 function EL(p){ return esF(p)?"ella":"él"; }
 function SU(p){ return esF(p)?"suya":"suyo"; }
 
-var state={ people:[], me:null, tab:"fichas", q:"", grupo:"", tipo:"" };
+var state={ people:[], me:null, tab:"fichas", q:"", grupo:"", tipo:"", tipos:[] };
 var SEED=null;
 
 /* ---------- persistencia ---------- */
@@ -358,6 +377,7 @@ function newPerson(){
     exito:"", admirado:"", importante:"", preocupa:"", fascina:"", ayuda:"", logros:"",
     quienesImportan:"", queQuierenLosSuyos:"", gustosDeLosSuyos:"", gesto:"",
     meAporta:"", necesito:"", buscaDeMi:"", problema:"", presume:"", cebo:"",
+    nosUne:"", nosSepara:"", hitos:"", sies:"",
     pasos:[], discurso:"",
     cumple:"", aniversario:"", ultimoContacto:"", frecuencia:90,
     mot:m, conexiones:[], notas:[], encuentros:[] };
@@ -368,7 +388,7 @@ function ensure(p){
   if(p.tipo==="trabajo") p.tipo="profesional";
   if(p.tipo==="personal") p.tipo="amigo";
   if(!p.tipo) p.tipo="amigo";
-  ["genero","exito","admirado","importante","preocupa","fascina","ayuda","logros","sector","meAporta","necesito","buscaDeMi","problema","presume","cebo","discurso","quienesImportan","queQuierenLosSuyos","gustosDeLosSuyos","gesto"]
+  ["genero","exito","admirado","importante","preocupa","fascina","ayuda","logros","sector","meAporta","necesito","buscaDeMi","problema","presume","cebo","discurso","nosUne","nosSepara","hitos","sies","quienesImportan","queQuierenLosSuyos","gustosDeLosSuyos","gesto"]
     .forEach(function(k){ if(p[k]==null) p[k]=""; });
   ["conexiones","notas","encuentros","pasos"].forEach(function(k){ if(!Array.isArray(p[k])) p[k]=[]; });
   return p;
@@ -378,15 +398,16 @@ function ensure(p){
 function haystack(p){
   var s=[p.nombre,p.apodo,p.ciudad,p.grupo,p.comoConocimos,p.pareja,p.hijos,p.familia,p.empleo,p.empresa,p.sector,
     p.aficiones,p.deportes,p.musica,p.comida,p.temas,p.evitar,p.exito,p.admirado,p.importante,p.preocupa,p.fascina,p.ayuda,p.logros,
-    p.meAporta,p.necesito,p.buscaDeMi,p.problema,p.presume,p.cebo,p.quienesImportan,p.queQuierenLosSuyos,p.gustosDeLosSuyos,p.gesto].join(" ");
+    p.meAporta,p.necesito,p.buscaDeMi,p.problema,p.presume,p.cebo,p.nosUne,p.nosSepara,p.hitos,p.sies,p.quienesImportan,p.queQuierenLosSuyos,p.gustosDeLosSuyos,p.gesto].join(" ");
   MOTS.forEach(function(x){ s+=" "+(p.mot[x[0]].t||""); });
   (p.notas||[]).forEach(function(n){ s+=" "+n.t; });
   return s.toLowerCase();
 }
+function tiposActivos(){ return (state.tipos&&state.tipos.length)?state.tipos:[]; }
 function filtered(){
-  var q=state.q.trim().toLowerCase();
+  var q=state.q.trim().toLowerCase(), ta=tiposActivos();
   return state.people.filter(function(p){
-    if(state.tipo&&p.tipo!==state.tipo) return false;
+    if(ta.length && ta.indexOf(p.tipo)<0) return false;
     if(state.grupo&&(p.grupo||"")!==state.grupo) return false;
     if(q&&haystack(p).indexOf(q)<0) return false;
     return true;
@@ -531,8 +552,9 @@ function generarDiscurso(p){
   var quien = p.empresa || p.empleo || "su equipo";
   if(neg){
     L.push("1. RECONOCIMIENTO (hecho concreto, sin adular)");
-    L.push(p.logros ? "   "+p.logros+". Por eso quería hablar contigo."
-      : "   "+gap("un hecho concreto y verificable de "+quien+" que puedas reconocer"));
+    L.push(p.hitos ? "   "+p.hitos+". Me sentiría orgulloso de formar parte de una organización con ese historial."
+      : (p.logros ? "   "+p.logros+". Por eso quería hablar contigo."
+      : "   "+gap("un hito concreto de "+quien+": un aniversario, una planta nueva, un premio, una cifra publicada")));
     L.push("");
     L.push("2. SU PROBLEMA, EN SUS TÉRMINOS");
     L.push("   "+(p.problema||p.preocupa ? "Por lo que veo, ahora mismo lo que os está costando es "+lower1(p.problema||p.preocupa)+"."
@@ -549,8 +571,12 @@ function generarDiscurso(p){
     if(c) L.push("   Recuerda su cebo: "+c+". Habla en esos términos, no en los tuyos.");
     if(p.mot.admiracion&&p.mot.admiracion.n>=2) L.push("   Le mueve que le admiren: reconócele algo real, y mejor si hay alguien delante.");
     L.push("");
-    L.push("5. CIERRE SIN CERRAR (que el sí sea suyo)");
+    L.push("5. LOS TRES SÍES, ANTES DE PROPONER NADA");
+    L.push("   "+(p.sies ? p.sies : gap("tres preguntas sobre lo que ell"+(esF(p)?"a":"e")+" quiere cuya respuesta sea sí")));
+    L.push("");
+    L.push("6. CIERRE SIN CERRAR (que la idea sea suya)");
     L.push("   No te pido que decidas nada hoy. Dime cómo lo plantearías tú en tu situación y te digo si se puede hacer.");
+    L.push("   Y cuando lo diga, es suyo. Reconóceselo y no lo reclames.");
   } else {
     L.push("1. POR DÓNDE ENTRAR");
     L.push("   "+(p.fascina||p.aficiones ? "Habla primero de "+lower1(p.fascina||splitList(p.aficiones)[0])+": es lo suyo."
@@ -573,6 +599,18 @@ function generarDiscurso(p){
   L.push("— El menú es compartido: los dos tenéis que salir habiendo disfrutado. Si solo ganas tú, no vuelve a haber comida.");
   return L.join("\n");
 }
+function listaCorta(s){ return String(s||"").split(/[\n,;·]/).map(function(x){return x.trim();}).filter(Boolean).slice(0,6); }
+function vinculoHTML(p){
+  var u=listaCorta(p.nosUne), s=listaCorta(p.nosSepara);
+  if(!u.length && !s.length) return '<p style="color:var(--muted);font-size:12px;margin:6px 0 0">Separa los puntos con comas y aquí verás la balanza.</p>';
+  var tot=Math.max(u.length+s.length,1), pu=Math.round(u.length/tot*100);
+  var h='<div class="vinc"><div class="vbar"><i style="width:'+pu+'%"></i></div>'
+    +'<div class="vcols"><div><b>Nos une</b>'+(u.length?u.map(function(x){return '<span class="vp une">'+esc(x)+'</span>';}).join(""):'<span class="vvacio">nada anotado</span>')+'</div>'
+    +'<div><b>Nos separa</b>'+(s.length?s.map(function(x){return '<span class="vp sep">'+esc(x)+'</span>';}).join(""):'<span class="vvacio">nada anotado</span>')+'</div></div>';
+  if(s.length>u.length) h+='<p class="vnota">Hoy pesa más lo que os separa. Nada de eso se arregla discutiéndolo: se compensa aumentando lo de la izquierda.</p>';
+  h+='</div>';
+  return h;
+}
 function openPlan(id){
   var p=ensure(byId(id)); if(!p) return;
   var t=terreno(p), neg=esNegocio(p), c=ceboDe(p);
@@ -591,6 +629,11 @@ function openPlan(id){
     +'</div>'
     +ta("De qué podrá presumir "+EL(p)+" si sale bien","pl_presume",p.presume)
     +ta("Un gesto que le pueda hacer y me cueste tiempo","pl_gesto",p.gesto)
+    +'</fieldset><fieldset><legend>Lo que nos une y lo que nos separa</legend>'
+    +'<div class="cols">'+ta("Lo que nos une","pl_nosUne",p.nosUne)+ta("Lo que nos separa","pl_nosSepara",p.nosSepara)+'</div>'
+    +vinculoHTML(p)
+    +ta("Hitos de su empresa o de su trayectoria que puedo reconocer","pl_hitos",p.hitos)
+    +ta("Tres preguntas suyas a las que dirá que sí (antes de proponer nada)","pl_sies",p.sies)
     +ta("Su cebo"+(c&&!p.cebo?" (sugerido: "+esc(c)+")":""),"pl_cebo",p.cebo)
     +'</fieldset>';
 
@@ -611,7 +654,9 @@ function openPlan(id){
     +'<button class="btn" type="button" id="copySpeech">Copiar</button></div>'
     +'<p style="color:var(--muted);font-size:12px;margin:8px 0 0">Lo marcado como <span class="gap">[FALTA: …]</span> es lo que aún no sabes. Averígualo antes de la cita: eso es la mitad del trabajo.</p></fieldset>';
 
-  h+='<div class="modal-actions"><button class="btn" onclick="openGuion(\''+p.id+'\')">Ver guión</button>'
+  h+='<div class="modal-actions">'
+    +'<button class="btn" id="pl_ficha">Volver a la ficha</button>'
+    +'<button class="btn" onclick="openGuion(\''+p.id+'\')">Ver guión</button>'
     +'<button class="btn" id="cancel">Cerrar</button><button class="btn primary" id="ok">Guardar</button></div>';
   showModal(h);
   var refresh=function(){ var box=document.getElementById("pasos"); if(box) box.innerHTML=pasosHTML(p); bindPasos(p,refresh); };
@@ -627,7 +672,7 @@ function openPlan(id){
     save(); refresh();
   };
   document.getElementById("gen").onclick=function(){
-    ["meAporta","necesito","buscaDeMi","problema","presume","cebo","gesto"].forEach(function(k){
+    ["meAporta","necesito","buscaDeMi","problema","presume","cebo","gesto","hitos","sies","nosUne","nosSepara"].forEach(function(k){
       var e=document.getElementById("pl_"+k); if(e) p[k]=e.value.trim();
     });
     document.getElementById("pl_discurso").value=generarDiscurso(p);
@@ -636,9 +681,16 @@ function openPlan(id){
     var t2=document.getElementById("pl_discurso").value;
     try{ navigator.clipboard.writeText(t2); this.textContent="Copiado"; }catch(e){ alert(t2); }
   };
+  document.getElementById("pl_ficha").onclick=function(){
+    ["meAporta","necesito","buscaDeMi","problema","presume","cebo","gesto","hitos","sies","nosUne","nosSepara"].forEach(function(k){
+      var e=document.getElementById("pl_"+k); if(e) p[k]=e.value.trim();
+    });
+    var dd=document.getElementById("pl_discurso"); if(dd) p.discurso=dd.value;
+    save(); openEdit(p.id);
+  };
   document.getElementById("cancel").onclick=closeModal;
   document.getElementById("ok").onclick=function(){
-    ["meAporta","necesito","buscaDeMi","problema","presume","cebo","gesto"].forEach(function(k){
+    ["meAporta","necesito","buscaDeMi","problema","presume","cebo","gesto","hitos","sies","nosUne","nosSepara"].forEach(function(k){
       var e=document.getElementById("pl_"+k); if(e) p[k]=e.value.trim();
     });
     p.discurso=document.getElementById("pl_discurso").value;
@@ -705,7 +757,7 @@ function openNota(id,ev){
     +'<div class="cols"><div class="fld"><label>Fecha</label><input type="date" id="nt_fecha" value="'+todayStr()+'"></div>'
     +'<div class="fld"><label>Marcar como último contacto</label><select id="nt_uc"><option value="si">Sí</option><option value="no">No</option></select></div></div>'
     +'<div class="fld"><label>Qué me contó</label><textarea id="nt_txt" style="min-height:110px" placeholder="Ej.: me contó que su hija empieza el instituto y que está agobiado con la mudanza"></textarea></div>'
-    +'<div class="notes" style="max-height:220px">'+notesHTML(p)+'</div>'
+    +'<div class="notes" id="notesRapido" style="max-height:220px">'+notesHTML(p)+'</div>'
     +'<div class="modal-actions"><button class="btn" onclick="openEdit(\''+p.id+'\')">Abrir ficha</button>'
     +'<button class="btn" id="cancel">Cancelar</button><button class="btn primary" id="ok">Guardar</button></div>';
   showModal(h);
@@ -756,7 +808,7 @@ function citaRow(x){
 function renderAgenda(){
   var el=document.getElementById("agenda"),now=today(),fechas=[];
   filtered().forEach(function(p){
-    [["cumple","Cumpleaños"],["aniversario","Aniversario"]].forEach(function(f){
+    [["cumple","Cumpleaños"]].forEach(function(f){
       var n=nextAnniversary(p[f[0]]);
       if(n) fechas.push({p:p,tipo:f[1],date:n,dias:daysBetween(now,n)});
     });
@@ -804,7 +856,37 @@ function rowHTML(p,tipo,when){
 
 /* ---------- grafo ---------- */
 var G={nodes:[],links:[],alpha:0,tx:0,ty:0,s:1,drag:null,pan:null,raf:null};
+function sectorDe(p){
+  var s=(p.sector||"").split(/[,;]/)[0].trim();
+  if(!s) s=(p.empresa||"").trim();
+  if(!s) s=(p.empleo||"").split(/[,;]/)[0].trim();
+  if(!s) s="Sin sector";
+  return s.charAt(0).toUpperCase()+s.slice(1).toLowerCase();
+}
+function buildGraphSectores(){
+  var list=filtered(), box=document.getElementById("graph").getBoundingClientRect();
+  var W=box.width||800,H=box.height||540;
+  var g={};
+  list.forEach(function(p){ var s=sectorDe(p); (g[s]=g[s]||[]).push(p); });
+  var claves=Object.keys(g).sort(function(a,b){ return g[b].length-g[a].length; });
+  var prev={}; G.nodes.forEach(function(n){ prev[n.id]=n; });
+  G.nodes=[{id:"__me",me:true,nombre:"Yo",x:W/2,y:H/2,vx:0,vy:0}];
+  claves.forEach(function(s,i){
+    var o=prev["sec:"+s], ang=(i/Math.max(claves.length,1))*Math.PI*2;
+    G.nodes.push({id:"sec:"+s, sector:s, gente:g[s], nombre:s,
+      x:o?o.x:W/2+Math.cos(ang)*Math.min(W,H)*0.33,
+      y:o?o.y:H/2+Math.sin(ang)*Math.min(W,H)*0.33, vx:0, vy:0});
+  });
+  G.links=claves.map(function(s){ return {a:"__me",b:"sec:"+s,me:true}; });
+  var lg={};
+  claves.forEach(function(s){ lg[s]=colorOf(g[s][0]); });
+  document.getElementById("legend").innerHTML=claves.slice(0,6).map(function(s){
+    return '<span class="chip"><span class="dot" style="background:'+lg[s]+'"></span>'+esc(s)+' ('+g[s].length+')</span>';
+  }).join("");
+  G.alpha=1; tick();
+}
 function buildGraph(){
+  if(state.modoMapa==="industrias") return buildGraphSectores();
   var list=filtered(),ids={}; list.forEach(function(p){ids[p.id]=1;});
   var prev={}; G.nodes.forEach(function(n){prev[n.id]=n;});
   var box=document.getElementById("graph").getBoundingClientRect();
@@ -883,6 +965,13 @@ function draw(){
   var ns=G.nodes.map(function(x){
     if(x.me) return '<g class="node"><circle cx="'+x.x+'" cy="'+x.y+'" r="16" fill="#1f1d1a"/>'
       +'<text x="'+x.x+'" y="'+(x.y+4)+'" fill="#fff" font-weight="700">Yo</text></g>';
+    if(x.sector){
+      var rr=15+Math.min(16,x.gente.length*3.2), col=colorOf(x.gente[0]);
+      return '<g class="node" data-sec="'+esc(x.sector)+'" style="cursor:pointer" onclick="verSector(\''+esc(x.sector).replace(/'/g,"&#39;")+'\')">'
+        +'<circle cx="'+x.x+'" cy="'+x.y+'" r="'+rr+'" fill="'+col+'" stroke="#fff" stroke-width="2" opacity=".9"/>'
+        +'<text x="'+x.x+'" y="'+(x.y+4)+'" fill="#fff" font-weight="700">'+x.gente.length+'</text>'
+        +'<text x="'+x.x+'" y="'+(x.y+rr+14)+'">'+esc(x.sector.length>18?x.sector.slice(0,18)+"…":x.sector)+'</text></g>';
+    }
     var r=13+Math.min(6,(x.p.conexiones||[]).length*1.5);
     return '<g class="node" data-id="'+x.id+'" style="cursor:pointer">'
       +'<circle cx="'+x.x+'" cy="'+x.y+'" r="'+r+'" fill="'+colorOf(x.p)+'" stroke="#fff" stroke-width="2"/>'
@@ -897,19 +986,27 @@ function svgPoint(ev){
 function initGraphEvents(){
   var svg=document.getElementById("graph");
   svg.addEventListener("pointerdown",function(ev){
-    var g=ev.target.closest?ev.target.closest(".node"):null,id=g&&g.getAttribute("data-id");
-    if(id) G.drag={id:id,moved:false};
+    var g=ev.target.closest?ev.target.closest(".node"):null;
+    var id=g&&g.getAttribute("data-id"), sec=g&&g.getAttribute("data-sec");
+    if(sec) G.drag={id:"sec:"+sec,sector:sec,moved:false};
+    else if(id) G.drag={id:id,moved:false};
     else { G.pan={x:ev.clientX-G.tx,y:ev.clientY-G.ty}; svg.classList.add("grabbing"); }
     svg.setPointerCapture(ev.pointerId);
   });
   svg.addEventListener("pointermove",function(ev){
     if(G.drag){
       var pt=svgPoint(ev),n=G.nodes.filter(function(x){return x.id===G.drag.id;})[0];
-      if(n){ n.x=pt.x;n.y=pt.y;G.drag.moved=true;G.alpha=Math.max(G.alpha,0.35);tick(); }
+      if(n){
+        if(G.drag.x0===undefined){ G.drag.x0=pt.x; G.drag.y0=pt.y; }
+        if(Math.abs(pt.x-G.drag.x0)>4||Math.abs(pt.y-G.drag.y0)>4) G.drag.moved=true;
+        n.x=pt.x;n.y=pt.y;G.alpha=Math.max(G.alpha,0.35);tick();
+      }
     } else if(G.pan){ G.tx=ev.clientX-G.pan.x; G.ty=ev.clientY-G.pan.y; draw(); }
   });
   svg.addEventListener("pointerup",function(){
-    if(G.drag&&!G.drag.moved) openEdit(G.drag.id);
+    if(G.drag&&!G.drag.moved){
+      if(G.drag.sector) verSector(G.drag.sector); else openEdit(G.drag.id);
+    }
     G.drag=null;G.pan=null;svg.classList.remove("grabbing");
   });
   svg.addEventListener("wheel",function(ev){
@@ -918,6 +1015,21 @@ function initGraphEvents(){
     var k=ev.deltaY<0?1.12:1/1.12,ns=Math.max(0.35,Math.min(2.6,G.s*k));
     G.tx=mx-(mx-G.tx)*(ns/G.s); G.ty=my-(my-G.ty)*(ns/G.s); G.s=ns; draw();
   },{passive:false});
+}
+
+function verSector(sec){
+  var gente=filtered().filter(function(p){ return sectorDe(p)===sec; });
+  var h='<h2>'+esc(sec)+'</h2>'
+    +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 12px">'+gente.length+' persona'+(gente.length>1?'s':'')+' en este sector</p>'
+    +gente.map(function(p){
+      return '<div class="row"><div class="av" style="background:'+colorOf(p)+'">'+esc(initials(p.nombre))+'</div>'
+        +'<div class="grow" onclick="openEdit(\''+p.id+'\')"><div style="font-weight:600">'+esc(p.nombre)+'</div>'
+        +'<div style="font-size:12.5px;color:var(--muted)">'+esc([p.empleo,p.empresa].filter(Boolean).join(" · ")||tipoLabel(p.tipo))+'</div></div>'
+        +'<button class="btn sm" onclick="openGuion(\''+p.id+'\')">Guión</button></div>';
+    }).join("")
+    +'<div class="modal-actions"><button class="btn" id="cancel">Cerrar</button></div>';
+  showModal(h);
+  document.getElementById("cancel").onclick=closeModal;
 }
 
 /* ---------- GUIÓN ---------- */
@@ -991,6 +1103,14 @@ function buildGuion(p){
   var t=terreno(p);
   cebo.push("Terreno preparado al "+t.pct+"%. "+t.veredicto);
   g.cebo=cebo;
+  var si=[];
+  if(p.sies) si.push("Tus tres síes preparados: "+p.sies);
+  else si.push("Prepara tres preguntas cuya respuesta sea sí, sobre lo que "+EL(p)+" quiere, no sobre lo que quieres tú.");
+  si.push("Nada de propuestas hasta el tercer sí. Quien viene diciendo que no tres veces, dice que no a la cuarta por inercia.");
+  if(p.cebo||ceboDe(p)) si.push("Y cuando propongas, hazlo desde su cebo: "+(p.cebo||ceboDe(p))+". La propuesta no es para tu bien, es para el suyo.");
+  si.push("Formúlalo como cooperación: qué conseguís los dos, no qué consigues tú.");
+  si.push("Y las preguntas van encaminadas a que llegue "+EL(p)+" solo a la solución. Cuando la diga, es suya: reconócesela y no la reclames.");
+  g.sies=si;
   var gente=[];
   if(p.quienesImportan) gente.push("A quien m\u00e1s quiere: "+p.quienesImportan);
   if(p.pareja) gente.push("Su pareja: "+p.pareja);
@@ -1051,6 +1171,7 @@ function openGuion(id){
     ["Por dónde empezar",g.abrir],
     ["En qué quiere tener éxito",g.quiere],
     ["El cebo y el terreno",g.cebo],
+    ["Los tres síes antes de pedir",g.sies],
     ["Su gente",g.gente],
     ["Temas que le encienden",g.temas],
     ["Cuando hable de lo suyo",g.reaccion],
@@ -1321,9 +1442,13 @@ function openEdit(id){
     +'<div class="cols">'+fld("Deporte / equipo","deportes",p.deportes)+fld("Música","musica",p.musica)
     +fld("Comida y bebida","comida",p.comida)+fld("Temas que le encienden","temas",p.temas)+'</div>'
     +fld("Temas a evitar","evitar",p.evitar)+'</fieldset>';
-  h+='<fieldset><legend>Fechas clave</legend><div class="cols3">'
-    +fld("Cumpleaños","cumple",p.cumple,"date")+fld("Aniversario u otra fecha","aniversario",p.aniversario,"date")
-    +fld("Último contacto","ultimoContacto",p.ultimoContacto,"date")+'</div>'
+  var citaProx=nextMeeting(p);
+  h+='<fieldset><legend>Fechas</legend><div class="cols3">'
+    +fld("Cumpleaños","cumple",p.cumple,"date")
+    +fld("Último contacto","ultimoContacto",p.ultimoContacto,"date")
+    +'<div class="fld"><label>Próxima cita</label><input type="date" id="f_proximaCita" value="'+esc(citaProx?citaProx.fecha:"")+'"></div>'
+    +'</div>'
+    +'<p style="color:var(--muted);font-size:11.5px;margin:-2px 0 8px">La próxima cita alimenta el aviso de las mañanas: el día antes te preparo el guión y busco noticias.</p>'
     +'<div class="fld" style="max-width:260px"><label>Recordar cada (días)</label>'
     +'<input type="number" min="1" id="f_frecuencia" value="'+(p.frecuencia||90)+'"></div></fieldset>';
   h+='<fieldset><legend>Qué le mueve</legend>'
@@ -1376,7 +1501,30 @@ function openEdit(id){
 }
 function notesHTML(p){
   if(!p.notas.length) return '<p style="color:var(--muted);font-size:12.5px;margin:0">Sin notas todavía.</p>';
-  return p.notas.slice(0,40).map(function(n){ return '<div class="note"><b>'+fmtDate(n.d)+'</b><br>'+esc(n.t)+'</div>'; }).join("");
+  return p.notas.slice(0,60).map(function(n,i){
+    return '<div class="note"><b>'+fmtDate(n.d)+'</b>'
+      +'<span class="nacts"><button type="button" class="nx" title="Editar" onclick="editarNota(\''+p.id+'\','+i+')">✎</button>'
+      +'<button type="button" class="nx" title="Borrar" onclick="borrarNota(\''+p.id+'\','+i+')">✕</button></span>'
+      +'<br>'+esc(n.t)+'</div>';
+  }).join("");
+}
+function refrescarNotas(p){
+  var c=document.getElementById("notes"); if(c) c.innerHTML=notesHTML(p);
+  var c2=document.getElementById("notesRapido"); if(c2) c2.innerHTML=notesHTML(p);
+}
+function editarNota(id,i){
+  var p=ensure(byId(id)); if(!p||!p.notas[i]) return;
+  var n=p.notas[i];
+  var t=prompt("Editar la conversación del "+fmtDate(n.d)+":", n.t);
+  if(t===null) return;
+  t=t.trim();
+  if(!t){ borrarNota(id,i,true); return; }
+  n.t=t; save(); refrescarNotas(p); renderAll(); toast("Nota actualizada");
+}
+function borrarNota(id,i,silencio){
+  var p=ensure(byId(id)); if(!p||!p.notas[i]) return;
+  if(!silencio && !confirm("¿Borrar esta anotación?\n\n"+p.notas[i].t.slice(0,120))) return;
+  p.notas.splice(i,1); save(); refrescarNotas(p); renderAll(); toast("Nota borrada");
 }
 function fld(label,key,val,type){
   if(type==="ta") return '<div class="fld"><label>'+label+'</label><textarea id="f_'+key+'">'+esc(val)+'</textarea></div>';
@@ -1388,6 +1536,13 @@ function commit(p,isNew){
    "aficiones","deportes","musica","comida","temas","evitar","cumple","aniversario","ultimoContacto"]
    .forEach(function(k){ var e=document.getElementById("f_"+k); if(e) p[k]=e.value.trim(); });
   p.tipo=document.getElementById("f_tipo").value;
+  var pc=document.getElementById("f_proximaCita");
+  if(pc){
+    var v=pc.value, act=nextMeeting(p);
+    if(v && act) act.fecha=v;
+    else if(v) p.encuentros.push({id:uid(),fecha:v,lugar:"",motivo:"cita",hecho:false,fb:null});
+    else if(!v && act) p.encuentros=p.encuentros.filter(function(e){ return e!==act; });
+  }
   var gz=document.getElementById("f_genero"); if(gz) p.genero=gz.value;
   p.frecuencia=parseInt(document.getElementById("f_frecuencia").value,10)||90;
   MOTS.forEach(function(m){ var e=document.getElementById("m_"+m[0]); if(e) p.mot[m[0]].t=e.value.trim(); });
@@ -2019,7 +2174,7 @@ function renderInforme(){
   };
   var list=filtered().slice().sort(function(a,b){return (a.nombre||"").localeCompare(b.nombre||"");});
   var hoy=new Date().toLocaleDateString("es-ES",{day:"numeric",month:"long",year:"numeric"});
-  var alcance=state.tipo?tipoLabel(state.tipo).toLowerCase()+"s":"todas las categorías";
+  var alcance=tiposActivos().length?tiposActivos().map(function(t){return tipoLabel(t).toLowerCase()+"s";}).join(", "):"todas las categorías";
   if(state.q) alcance+=' · búsqueda "'+state.q+'"';
   var h='<div class="inf-h1">Mapa de amigos</div>'
     +'<div class="inf-meta">'+esc(hoy)+' · '+list.length+' de '+state.people.length+' personas · '+esc(alcance)+'</div>'
@@ -2079,6 +2234,7 @@ function renderInforme(){
     if(opt.guion&&g){
       h+=infLista("Por dónde empezar",g.abrir);
       h+=infLista("Preguntas para que hable "+EL(p),g.preguntas);
+      h+=infLista("Los tres síes antes de pedir",g.sies);
       h+=infLista("Cuando hable de lo suyo",g.reaccion);
       h+=infLista("Cómo ayudarle",g.ayuda);
       h+=infLista("Si algo sale mal",g.mal);
@@ -2095,14 +2251,23 @@ function renderInforme(){
 
 /* ---------- render global ---------- */
 function renderSeg(){
-  var el=document.getElementById("seg");
+  var el=document.getElementById("seg"), ta=tiposActivos();
   var opts=[["","Todos",""]].concat(TIPOS);
   el.innerHTML=opts.map(function(t){
-    return '<button data-t="'+t[0]+'" class="'+(state.tipo===t[0]?"on":"")+'" style="'+(state.tipo===t[0]&&t[2]?"color:"+t[2]:"")+'">'
+    var on = t[0]==="" ? !ta.length : ta.indexOf(t[0])>=0;
+    return '<button data-t="'+t[0]+'" class="'+(on?"on":"")+'" style="'+(on&&t[2]?"color:"+t[2]:"")+'">'
       +(t[2]?'<span class="dot" style="background:'+t[2]+'"></span>':'')+t[1]+'</button>';
   }).join("");
   el.querySelectorAll("button").forEach(function(b){
-    b.onclick=function(){ state.tipo=b.getAttribute("data-t"); state.grupo=""; renderSeg(); renderAll(); };
+    b.onclick=function(){
+      var t=b.getAttribute("data-t");
+      if(!t){ state.tipos=[]; }
+      else {
+        var i=state.tipos.indexOf(t);
+        if(i>=0) state.tipos.splice(i,1); else state.tipos.push(t);
+      }
+      state.grupo=""; renderSeg(); renderAll();
+    };
   });
 }
 function renderAll(){
@@ -2110,7 +2275,7 @@ function renderAll(){
   sel.innerHTML='<option value="">Todos los círculos</option>'
     +grupos().map(function(g){return '<option'+(g===cur?" selected":"")+'>'+esc(g)+'</option>';}).join("");
   var n=filtered().length,tot=state.people.length;
-  document.getElementById("count").textContent=tot?(state.tipo?n+" de "+tot+" personas":tot+" personas"):"";
+  document.getElementById("count").textContent=tot?(tiposActivos().length?n+" de "+tot+" personas":tot+" personas"):"";
   renderCards(); renderCitas(); renderAgenda(); try{ revisarAvisos(); }catch(e){}
   if(state.tab==="mapa") buildGraph();
   if(state.tab==="informe") renderInforme();
@@ -2144,6 +2309,7 @@ document.getElementById("file").onchange=function(e){ if(e.target.files[0]) impo
 document.getElementById("pdfBtn").onclick=function(){ renderInforme(); setTimeout(function(){ window.print(); },150); };
 document.getElementById("reflow").onclick=function(){ G.tx=0;G.ty=0;G.s=1;G.nodes=[]; buildGraph(); };
 document.getElementById("byGroup").onchange=buildGraph;
+document.getElementById("modoMapa").onchange=function(e){ state.modoMapa=e.target.value; G.nodes=[]; buildGraph(); };
 document.getElementById("overlay").onclick=function(e){ if(e.target.id==="overlay") closeModal(); };
 document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal(); });
 window.addEventListener("resize",function(){ if(state.tab==="mapa"){ G.alpha=0.3; tick(); } });
@@ -2152,8 +2318,8 @@ renderAll();
 lockIfNeeded();
 try{ restaurarCarpeta(); }catch(e){}
 try{ if(location.protocol==="https:"&&"serviceWorker" in navigator) navigator.serviceWorker.register("sw.js"); }catch(e){}
-window.openEdit=openEdit; window.openGuion=openGuion; window.openPlan=openPlan; window.borrarPersona=borrarPersona;
-window.openCita=openCita; window.openFeedback=openFeedback; window.openNota=openNota; window.sincronizarYa=sincronizarYa; window.openSync=openSync; window.openSync=openSync;
+window.openEdit=openEdit; window.openGuion=openGuion; window.openPlan=openPlan; window.borrarPersona=borrarPersona; window.verSector=verSector;
+window.openCita=openCita; window.openFeedback=openFeedback; window.openNota=openNota; window.editarNota=editarNota; window.borrarNota=borrarNota; window.sincronizarYa=sincronizarYa; window.openSync=openSync; window.openSync=openSync;
 </script>
 </body>
 </html>
