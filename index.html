@@ -31,6 +31,7 @@ header.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-conte
 .title small{color:var(--muted);font-size:12.5px}
 .lema{margin:3px 0 0;font-size:12.5px;color:var(--muted);max-width:560px;line-height:1.45}
 .lema b{color:var(--ink);font-weight:620}
+.ver{display:inline-block;background:#ece9e3;color:#8a8378;border-radius:6px;padding:1px 6px;font-size:10.5px;margin-right:6px;letter-spacing:.02em;cursor:pointer}
 .tabs{display:flex;gap:4px;background:#ece9e3;padding:3px;border-radius:10px}
 .tabs button{border:0;background:transparent;padding:6px 13px;border-radius:8px;color:var(--muted);font-weight:550}
 .tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
@@ -225,7 +226,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 <div class="wrap">
   <header class="top">
     <div class="titlewrap"><div class="title"><h1>Mapa de amigos</h1><small id="count"></small></div>
-      <p class="lema">Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
+      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.07-1</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
     <div class="tabs">
       <button data-tab="fichas" class="on">Fichas</button>
       <button data-tab="citas">Citas</button>
@@ -290,6 +291,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 
 <script>
 "use strict";
+var VERSION="2026.08.07-1";
 var KEY="mapaAmigos.v3";
 var MOTS=[
   ["salud","Salud y vida"],["sustento","Alimento y descanso"],["dinero","Dinero y lo que compra"],
@@ -1632,6 +1634,28 @@ function ponerMicros(){
   });
 }
 
+function comprobarVersion(){
+  if(location.protocol!=="https:") return;
+  fetch("./index.html?v="+Date.now(),{cache:"no-store"}).then(function(r){ return r.text(); }).then(function(t){
+    var m=t.match(/var VERSION="([^"]+)"/);
+    if(m && m[1]!==VERSION){
+      var el=document.getElementById("aviso");
+      if(el) el.innerHTML='<div class="banner"><span style="flex:1">Hay una versión más nueva de la app ('+esc(m[1])+'). La tuya es la '+esc(VERSION)+'.</span>'
+        +'<button class="btn sm" onclick="actualizarApp()">Actualizar</button></div>';
+    }
+  }).catch(function(){});
+}
+function actualizarApp(){
+  if("serviceWorker" in navigator){
+    navigator.serviceWorker.getRegistrations().then(function(rs){
+      return Promise.all(rs.map(function(r){ return r.unregister(); }));
+    }).then(function(){ return caches.keys(); })
+      .then(function(ks){ return Promise.all(ks.map(function(k){ return caches.delete(k); })); })
+      .then(function(){ location.reload(true); })
+      .catch(function(){ location.reload(true); });
+  } else location.reload(true);
+}
+
 /* ---------- instalar como aplicacion ---------- */
 var promptInstalar=null;
 window.addEventListener("beforeinstallprompt",function(e){
@@ -2317,9 +2341,11 @@ initGraphEvents();
 renderAll();
 lockIfNeeded();
 try{ restaurarCarpeta(); }catch(e){}
+setTimeout(function(){ try{ comprobarVersion(); }catch(e){} },1500);
+var ve=document.getElementById("verEt"); if(ve) ve.onclick=actualizarApp;
 try{ if(location.protocol==="https:"&&"serviceWorker" in navigator) navigator.serviceWorker.register("sw.js"); }catch(e){}
 window.openEdit=openEdit; window.openGuion=openGuion; window.openPlan=openPlan; window.borrarPersona=borrarPersona; window.verSector=verSector;
-window.openCita=openCita; window.openFeedback=openFeedback; window.openNota=openNota; window.editarNota=editarNota; window.borrarNota=borrarNota; window.sincronizarYa=sincronizarYa; window.openSync=openSync; window.openSync=openSync;
+window.openCita=openCita; window.openFeedback=openFeedback; window.openNota=openNota; window.editarNota=editarNota; window.borrarNota=borrarNota; window.sincronizarYa=sincronizarYa; window.openSync=openSync; window.actualizarApp=actualizarApp; window.openSync=openSync;
 </script>
 </body>
 </html>
