@@ -232,7 +232,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 <div class="wrap">
   <header class="top">
     <div class="titlewrap"><div class="title"><h1>Mapa de amigos</h1><small id="count"></small></div>
-      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.12-2</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
+      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.12-4</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
     <div class="tabs">
       <button data-tab="fichas" class="on">Fichas</button>
       <button data-tab="citas">Citas</button>
@@ -245,7 +245,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
   <div class="seg" id="seg"></div>
 
   <div class="toolbar">
-    <div class="buscador"><span class="lupa">\u2315</span><input type="search" id="q" placeholder="Buscar persona, interés, empleo, ciudad…"><button class="btnx" id="qclear" title="Limpiar">\u2715</button></div>
+    <div class="buscador"><span class="lupa">⌕</span><input type="search" id="q" placeholder="Buscar persona, interés, empleo, ciudad…"><button class="btnx" id="qclear" title="Limpiar" aria-label="Limpiar">✕</button></div>
     <select id="fGrupo"><option value="">Todos los círculos</option></select>
     <button class="btn primary" id="add">+ Persona</button>
     <button class="btn" id="meBtn">Mi perfil</button>
@@ -297,7 +297,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 
 <script>
 "use strict";
-var VERSION="2026.08.12-2";
+var VERSION="2026.08.12-4";
 var KEY="mapaAmigos.v3";
 var MOTS=[
   ["salud","Salud y vida"],["sustento","Alimento y descanso"],["dinero","Dinero y lo que compra"],
@@ -1112,6 +1112,11 @@ function buildGuion(p){
   var t=terreno(p);
   cebo.push("Terreno preparado al "+t.pct+"%. "+t.veredicto);
   g.cebo=cebo;
+  var esc2=[];
+  esc2.push("Si duda o se niega, no lo tomes como rechazo ni te pongas a la defensiva. Dile que te gusta la gente que exige pruebas: «me encantan las personas a las que hay que demostrarles las cosas, contigo no vale el humo».");
+  esc2.push("Y ponlo en valor de verdad: casi todos los grandes avances del pensamiento han salido de los incrédulos, de los que desafían y piden pruebas. El que duda no es un obstáculo, es quien va a apretar hasta que la idea sea sólida.");
+  esc2.push("Con eso conviertes su «no» en un papel del que se siente orgulloso —el del riguroso— y le invitas a que le demuestres, en vez de a que se cierre.");
+  g.esc=esc2;
   var feliz=[];
   feliz.push("El objetivo no es que acepte: es que se sienta bien haciéndolo. Si accede a regañadientes, has perdido aunque hayas ganado.");
   if(p.exito) feliz.push("Enseña cómo lo que propones le acerca a "+lower1(p.exito)+". Esa es la única razón por la que va a moverse.");
@@ -1131,6 +1136,7 @@ function buildGuion(p){
   if(p.cebo||ceboDe(p)) si.push("Y cuando propongas, hazlo desde su cebo: "+(p.cebo||ceboDe(p))+". La propuesta no es para tu bien, es para el suyo.");
   si.push("Formúlalo como cooperación: qué conseguís los dos, no qué consigues tú.");
   si.push("Y las preguntas van encaminadas a que llegue "+EL(p)+" solo a la solución. Cuando la diga, es suya: reconócesela y no la reclames.");
+  si.push("Cuando pidas, pídelo como un favor, no como una necesidad tuya: «me harías un favor si…», «solo tú podrías echarme una mano con esto». Pedir ayuda a alguien le dice que le tienes por capaz y de fiar; halaga más que un elogio.");
   g.sies=si;
   var gente=[];
   if(p.quienesImportan) gente.push("A quien m\u00e1s quiere: "+p.quienesImportan);
@@ -1195,6 +1201,7 @@ function openGuion(id){
     ["El cebo y el terreno",g.cebo],
     ["Los tres síes antes de pedir",g.sies],
     ["Que le apetezca hacerlo",g.feliz],
+    ["Si duda o se niega",g.esc],
     ["Si necesitas que corrija algo",g.defectos],
     ["Su gente",g.gente],
     ["Temas que le encienden",g.temas],
@@ -1309,6 +1316,17 @@ function openFeedback(pid,eid){
 
 /* ---------- retrato en escena ---------- */
 function recorta(s,n){ s=(s||"").replace(/\s+/g," ").trim(); return s.length>n? s.slice(0,n-1)+"\u2026" : s; }
+function esencia(s,n){
+  s=(s||"").replace(/\s+/g," ").trim();
+  if(s.length<=n) return s;
+  var corte=s.slice(0,n);
+  // corta en el ultimo separador natural para no partir palabras
+  var m=corte.lastIndexOf(". "); if(m>n*0.5) return corte.slice(0,m);
+  m=Math.max(corte.lastIndexOf(", "),corte.lastIndexOf("; "),corte.lastIndexOf(" y "));
+  if(m>n*0.55) return corte.slice(0,m);
+  m=corte.lastIndexOf(" "); if(m>0) corte=corte.slice(0,m);
+  return corte+"\u2026";
+}
 function lineas(s,ancho,max){
   var pal=(s||"").replace(/\s+/g," ").trim().split(" ").reduce(function(a,w){
     while(w.length>ancho){ a.push(w.slice(0,ancho-1)+"-"); w=w.slice(ancho-1); }
@@ -1329,12 +1347,12 @@ function txtSVG(s,x,y,ancho,max,cls,lh){
 }
 function escenaSVG(p){
   var col=colorOf(p);
-  var exito=p.exito||"(aún no sé qué persigue)";
-  var preo=p.preocupa||"(aún no sé qué le preocupa)";
-  var fasc=p.fascina||p.aficiones||"(aún no sé qué le fascina)";
-  var adm=p.admirado||"(aún no sé por qué querría que le admiraran)";
-  var cebo=p.cebo||ceboDe(p)||"";
-  var gesto=p.gesto||"";
+  var exito=esencia(p.exito||"(aún no sé qué persigue)",150);
+  var preo=esencia(p.preocupa||"(aún no sé qué le preocupa)",110);
+  var fasc=esencia(p.fascina||p.aficiones||"(aún no sé qué le fascina)",48);
+  var adm=esencia(p.admirado||"(aún no sé por qué querría que le admiraran)",90);
+  var cebo=esencia(p.cebo||ceboDe(p)||"",60);
+  var gesto=esencia(p.gesto||"",56);
   var nom=p.nombre||"Sin nombre";
   return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900" width="900" height="900">'
    +'<defs><style>'
@@ -1970,7 +1988,7 @@ function gdConectar(){
       gdSet(true); return gdSubir(tok).then(function(){ toast("Conectado a Drive. Se subieron tus fichas."); openSync&&openSync(); });
     });
   }).catch(function(e){
-    alert("No se pudo conectar con Drive. Comprueba que iniciaste sesión con geselectiberica@gmail.com y que aceptaste el permiso.");
+    alert("No se pudo conectar con Drive. Comprueba que iniciaste sesión con tu cuenta de Google y que aceptaste el permiso.");
   });
 }
 function gdArranque(){
@@ -2358,7 +2376,7 @@ function openSync(){
   h+='<fieldset style="border-color:'+(gdon?"#3f7d5c":"var(--accent)")+'"><legend style="color:'+(gdon?"#3f7d5c":"var(--accent)")+'">Google Drive '+(gdon?"conectado":"— automático, móvil y ordenador")+'</legend>'
     +'<p style="font-size:13px;margin:0 0 8px">'+(gdon
       ? "La app se sincroniza sola con tu Drive: al abrirla trae lo último y al cambiar algo lo sube. No tienes que mover archivos."
-      : "Conéctalo una vez en cada dispositivo (con geselectiberica@gmail.com) y a partir de ahí se sincroniza solo, aquí y en el móvil, sin enviar ni traer nada.")+'</p>'
+      : "Conéctalo una vez en cada dispositivo, con tu cuenta de Google, y a partir de ahí se sincroniza solo, aquí y en el móvil, sin enviar ni traer nada.")+'</p>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
     +'<button class="btn primary" id="gd_conectar">'+(gdon?"Reconectar":"Conectar Google Drive")+'</button>'
     +(gdon?'<button class="btn" id="gd_ahora">Guardar ahora</button><button class="btn danger" id="gd_desconectar">Desconectar</button>':'')
@@ -2480,10 +2498,12 @@ function revisarAvisos(){
       }
     }
   }
+  if(gdActivo() && !getPass() && !msg) msg="Drive está conectado, pero tus datos suben SIN cifrar. Pon una contraseña de cifrado para que ni Google pueda leerlos.";
   if(FS.pideClave) msg="El archivo de la carpeta está cifrado y aquí no tienes la contraseña.";
   else if(FS.claveMala) msg="La contraseña no abre el archivo de la carpeta. Revísala.";
+  var cifraAviso = gdActivo() && !getPass();
   el.innerHTML = msg
-    ? '<div class="banner'+(ok?" ok":"")+'"><span style="flex:1">'+esc(msg)+'</span><button class="btn sm" onclick="'+((FS.pideClave||FS.claveMala)?'openSync()':'sincronizarYa()')+'">'+((FS.pideClave||FS.claveMala)?'Poner contraseña':'Sincronizar ahora')+'</button></div>'
+    ? '<div class="banner'+(ok?" ok":"")+'"><span style="flex:1">'+esc(msg)+'</span><button class="btn sm" onclick="openSync()">'+((FS.pideClave||FS.claveMala||cifraAviso)?'Poner contraseña':'Sincronizar ahora')+'</button></div>'
     : "";
 }
 
@@ -2605,6 +2625,7 @@ function renderInforme(){
       h+=infLista("Preguntas para que hable "+EL(p),g.preguntas);
       h+=infLista("Los tres síes antes de pedir",g.sies);
       h+=infLista("Que le apetezca hacerlo",g.feliz);
+      h+=infLista("Si duda o se niega",g.esc);
       h+=infLista("Si necesitas que corrija algo",g.defectos);
       h+=infLista("Cuando hable de lo suyo",g.reaccion);
       h+=infLista("Cómo ayudarle",g.ayuda);
