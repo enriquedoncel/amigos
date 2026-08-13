@@ -232,7 +232,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 <div class="wrap">
   <header class="top">
     <div class="titlewrap"><div class="title"><h1>Mapa de amigos</h1><small id="count"></small></div>
-      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.12-8</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
+      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.13-9</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
     <div class="tabs">
       <button data-tab="fichas" class="on">Fichas</button>
       <button data-tab="citas">Citas</button>
@@ -297,7 +297,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 
 <script>
 "use strict";
-var VERSION="2026.08.12-8";
+var VERSION="2026.08.13-9";
 var KEY="mapaAmigos.v3";
 var MOTS=[
   ["salud","Salud y vida"],["sustento","Alimento y descanso"],["dinero","Dinero y lo que compra"],
@@ -1932,7 +1932,7 @@ function gdToken(prompt){
 }
 function gdBuscar(tok){
   var q=encodeURIComponent("name='mapa-amigos.json' and trashed=false");
-  return fetch("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q="+q+"&fields=files(id,modifiedTime)",
+  return fetch("https://www.googleapis.com/drive/v3/files?q="+q+"&orderBy=modifiedTime desc&fields=files(id,modifiedTime)",
     {headers:{Authorization:"Bearer "+tok}}).then(function(r){ return r.json(); })
     .then(function(j){ var f=(j.files||[])[0]; GD.fileId=f?f.id:null; return f||null; });
 }
@@ -1955,16 +1955,18 @@ function gdSubir(tok){
   var prep = pass ? cifrar(txt,pass) : Promise.resolve(txt);
   return prep.then(function(cont){
     var meta={name:"mapa-amigos.json"};
-    if(!GD.fileId) meta.parents=["appDataFolder"];
     var boundary="mapaamigos"+Date.now();
     var body="--"+boundary+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+JSON.stringify(meta)
       +"\r\n--"+boundary+"\r\nContent-Type: application/octet-stream\r\n\r\n"+cont+"\r\n--"+boundary+"--";
     var url=GD.fileId
-      ? "https://www.googleapis.com/upload/drive/v3/files/"+GD.fileId+"?uploadType=multipart"
-      : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart";
+      ? "https://www.googleapis.com/upload/drive/v3/files/"+GD.fileId+"?uploadType=multipart&fields=id"
+      : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id";
     return fetch(url,{method:GD.fileId?"PATCH":"POST",
       headers:{Authorization:"Bearer "+tok,"Content-Type":"multipart/related; boundary="+boundary},
-      body:body}).then(function(r){ return r.json(); })
+      body:body}).then(function(r){
+        if(!r.ok) return r.text().then(function(t){ throw new Error("Drive "+r.status+": "+t); });
+        return r.json();
+      })
       .then(function(j){ if(j.id) GD.fileId=j.id; return true; });
   });
 }
