@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{
@@ -46,7 +47,11 @@ header.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-conte
 .btn.sm{padding:4px 9px;font-size:13px}
 .btn.danger{color:#a33;border-color:#e7c9c9}
 .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
-.toolbar input[type=search]{flex:1;min-width:190px}
+.buscador{position:relative;flex:1 1 100%;min-width:190px;order:-1}
+.buscador input{width:100%;padding-left:32px;padding-right:34px}
+.lupa{position:absolute;left:10px;top:50%;transform:translateY(-50%) rotate(-45deg);color:#a8a29a;font-size:16px;pointer-events:none}
+.btnx{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#b0a99f;font-size:13px;cursor:pointer;padding:5px 7px;border-radius:6px}
+.btnx:hover{background:var(--accent-soft);color:var(--accent)}
 .toolbar select{width:auto;min-width:130px}
 .chip{display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:2px 9px;font-size:12px;color:var(--muted)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:12px}
@@ -153,7 +158,8 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
   .seg button{flex:1;padding:8px 6px;font-size:12.5px;justify-content:center}
   .seg button .dot{display:none}
   .toolbar{gap:6px}
-  .toolbar input[type=search]{flex:1 1 100%}
+  .buscador{flex:1 1 100%}
+  .buscador input{font-size:16px;padding-top:11px;padding-bottom:11px}
   .toolbar select{flex:1 1 46%;min-width:0}
   .toolbar .btn{flex:1 1 46%}
   input,select,textarea{font-size:16px;padding:9px 10px}
@@ -226,7 +232,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 <div class="wrap">
   <header class="top">
     <div class="titlewrap"><div class="title"><h1>Mapa de amigos</h1><small id="count"></small></div>
-      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.07-1</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
+      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.12-2</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
     <div class="tabs">
       <button data-tab="fichas" class="on">Fichas</button>
       <button data-tab="citas">Citas</button>
@@ -239,7 +245,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
   <div class="seg" id="seg"></div>
 
   <div class="toolbar">
-    <input type="search" id="q" placeholder="Buscar por nombre, interés, empleo, ciudad, nota…">
+    <div class="buscador"><span class="lupa">\u2315</span><input type="search" id="q" placeholder="Buscar persona, interés, empleo, ciudad…"><button class="btnx" id="qclear" title="Limpiar">\u2715</button></div>
     <select id="fGrupo"><option value="">Todos los círculos</option></select>
     <button class="btn primary" id="add">+ Persona</button>
     <button class="btn" id="meBtn">Mi perfil</button>
@@ -291,7 +297,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 
 <script>
 "use strict";
-var VERSION="2026.08.07-1";
+var VERSION="2026.08.12-2";
 var KEY="mapaAmigos.v3";
 var MOTS=[
   ["salud","Salud y vida"],["sustento","Alimento y descanso"],["dinero","Dinero y lo que compra"],
@@ -338,7 +344,7 @@ function save(){
   try{ localStorage.setItem(KEY,JSON.stringify({people:state.people,me:state.me,v:3,saved:new Date().toISOString()})); }
   catch(e){ if(!save.warned){ save.warned=true;
     alert("Este navegador no permite guardar datos localmente. Usa Sincronizar para no perder lo que escribas."); } }
-  try{ programarSync(); revisarAvisos(); }catch(e){}
+  try{ programarSync(); gdProgramar(); revisarAvisos(); }catch(e){}
 }
 function uid(){ return "p"+Math.random().toString(36).slice(2,9); }
 function applySeed(){
@@ -474,6 +480,7 @@ function renderCards(){
       +'<div class="tags">'+tags+top+'</div>'
       +ultimaConv(p)
       +'<div class="cardacts"><button class="btn sm" onclick="openNota(\''+p.id+'\')">+ Conversación</button>'
+      +'<button class="btn sm" onclick="verEscena(\''+p.id+'\')">Imagen</button>'
       +'<button class="btn sm" onclick="openGuion(\''+p.id+'\')">Guión</button>'
       +'<button class="btn sm" onclick="openPlan(\''+p.id+'\')">Plan</button>'
       +'<button class="btn sm" onclick="openCita(\''+p.id+'\')">Agendar</button>'
@@ -1105,6 +1112,18 @@ function buildGuion(p){
   var t=terreno(p);
   cebo.push("Terreno preparado al "+t.pct+"%. "+t.veredicto);
   g.cebo=cebo;
+  var feliz=[];
+  feliz.push("El objetivo no es que acepte: es que se sienta bien haciéndolo. Si accede a regañadientes, has perdido aunque hayas ganado.");
+  if(p.exito) feliz.push("Enseña cómo lo que propones le acerca a "+lower1(p.exito)+". Esa es la única razón por la que va a moverse.");
+  if(p.importante) feliz.push("Y hazlo de forma que se sienta importante: "+p.importante);
+  feliz.push("Dale el mérito antes de que lo pida y delante de alguien. Quien queda bien haciendo algo, repite.");
+  g.feliz=feliz;
+  var def=[];
+  def.push("Si necesitas que corrija algo, no lo llames defecto. Empieza reconociendo sinceramente lo bien que hace justo eso.");
+  def.push("Y luego: «con lo bien que se te da esto, quedaría perfecto si además…». El fallo pasa a ser un detalle pequeño dentro de algo que hace bien.");
+  def.push("Nunca «pero». El «pero» borra todo lo que dijiste antes. Usa «y además» o «lo único que le falta».");
+  def.push("Y una sola cosa cada vez. Dos correcciones seguidas ya no son un consejo: son una lista de reproches.");
+  g.defectos=def;
   var si=[];
   if(p.sies) si.push("Tus tres síes preparados: "+p.sies);
   else si.push("Prepara tres preguntas cuya respuesta sea sí, sobre lo que "+EL(p)+" quiere, no sobre lo que quieres tú.");
@@ -1146,7 +1165,8 @@ function buildGuion(p){
   desp.push("Querer volver a verle. Y volver a verle: la diferencia entre caer bien y tener un amigo es la segunda vez.");
   g.despedida=desp;
   var mal=[];
-  mal.push("No critiques. Di que eso no parece propio de "+SU(p)+" nivel habitual: «me extra\u00f1a en ti, que sueles cuidar mucho esto».");
+  mal.push("No critiques. Reconoce primero lo bien que se le da eso, y luego: «quedaría perfecto si además…». El fallo se convierte en un detalle dentro de algo que hace bien.");
+  mal.push("O apela a su nivel habitual: «me extra\u00f1a en ti, que sueles cuidar mucho esto».");
   mal.push("Le dejas el list\u00f3n alto y "+EL(p)+" se esmera para volver a estar a la altura. Una cr\u00edtica directa solo produce justificaciones, aunque tenga toda la raz\u00f3n del mundo.");
   mal.push("Nunca delante de nadie. En p\u00fablico solo se reconoce; lo otro, a solas.");
   mal.push("Y despu\u00e9s d"+(esF(p)?"ale":"ale")+" por hecho que lo va a corregir. La gente tiende a comportarse como el papel que le adjudicas.");
@@ -1174,6 +1194,8 @@ function openGuion(id){
     ["En qué quiere tener éxito",g.quiere],
     ["El cebo y el terreno",g.cebo],
     ["Los tres síes antes de pedir",g.sies],
+    ["Que le apetezca hacerlo",g.feliz],
+    ["Si necesitas que corrija algo",g.defectos],
     ["Su gente",g.gente],
     ["Temas que le encienden",g.temas],
     ["Cuando hable de lo suyo",g.reaccion],
@@ -1283,6 +1305,158 @@ function openFeedback(pid,eid){
     if(r.length) p.notas.unshift({d:fecha,t:r.join(" · ")});
     save(); closeModal(); renderAll();
   };
+}
+
+/* ---------- retrato en escena ---------- */
+function recorta(s,n){ s=(s||"").replace(/\s+/g," ").trim(); return s.length>n? s.slice(0,n-1)+"\u2026" : s; }
+function lineas(s,ancho,max){
+  var pal=(s||"").replace(/\s+/g," ").trim().split(" ").reduce(function(a,w){
+    while(w.length>ancho){ a.push(w.slice(0,ancho-1)+"-"); w=w.slice(ancho-1); }
+    a.push(w); return a;
+  },[]), out=[], cur="";
+  for(var i=0;i<pal.length;i++){
+    var t=cur?cur+" "+pal[i]:pal[i];
+    if(t.length>ancho){ out.push(cur); cur=pal[i]; if(out.length>=max) break; } else cur=t;
+  }
+  if(cur && out.length<max) out.push(cur);
+  if(out.length===max && cur && out[max-1]!==cur) out[max-1]=out[max-1].replace(/.{1}$/,"\u2026");
+  return out;
+}
+function txtSVG(s,x,y,ancho,max,cls,lh){
+  return lineas(s,ancho,max).map(function(l,i){
+    return '<text x="'+x+'" y="'+(y+i*(lh||17))+'" class="'+cls+'">'+esc(l)+'</text>';
+  }).join("");
+}
+function escenaSVG(p){
+  var col=colorOf(p);
+  var exito=p.exito||"(aún no sé qué persigue)";
+  var preo=p.preocupa||"(aún no sé qué le preocupa)";
+  var fasc=p.fascina||p.aficiones||"(aún no sé qué le fascina)";
+  var adm=p.admirado||"(aún no sé por qué querría que le admiraran)";
+  var cebo=p.cebo||ceboDe(p)||"";
+  var gesto=p.gesto||"";
+  var nom=p.nombre||"Sin nombre";
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900" width="900" height="900">'
+   +'<defs><style>'
+   +'.t{font-family:Georgia,serif;fill:#2b2721}'
+   +''
+   +'.p{font-size:17px}'
+   +'.s{font-size:12.5px;fill:#6b6459;letter-spacing:.06em;font-weight:bold}'
+   +'.n{font-size:26px;font-weight:bold;fill:#fff;letter-spacing:.02em}'
+   +'.q{font-size:16px;font-style:italic}'
+   +'</style></defs>'
+   +'<rect width="900" height="900" fill="#3c4650"/>'
+   +'<rect x="0" y="600" width="900" height="300" fill="#6b4a32"/>'
+   +'<rect x="0" y="596" width="900" height="10" fill="#54stub"/>'.replace("#54stub","#5a3d29")
+   // cuadro grande: en qué quiere tener éxito
+   +'<g><rect x="452" y="60" width="416" height="252" fill="#efe9dd" stroke="#c9a961" stroke-width="9"/>'
+   +'<text x="480" y="104" class="t s">EN QUÉ QUIERE TENER ÉXITO</text>'
+   +txtSVG(exito,480,136,30,7,"t p",24)+'</g>'
+   // cuadro medio: qué le preocupa
+   +'<g><rect x="452" y="336" width="416" height="188" fill="#efe9dd" stroke="#8a7f6f" stroke-width="6"/>'
+   +'<text x="480" y="374" class="t s">LO QUE LE QUITA EL SUEÑO</text>'
+   +txtSVG(preo,480,404,31,5,"t p",23)+'</g>'
+   // gato
+   +'<g transform="translate(215,470)">'
+   +'<ellipse cx="0" cy="120" rx="112" ry="120" fill="#9a8b78"/>'
+   +'<ellipse cx="0" cy="0" rx="95" ry="82" fill="#a8987f"/>'
+   +'<path d="M-88 -48 L-72 -132 L-16 -70 Z" fill="#a8987f"/><path d="M88 -48 L72 -132 L16 -70 Z" fill="#a8987f"/>'
+   +'<path d="M-80 -52 L-70 -112 L-28 -68 Z" fill="#d9b7a8"/><path d="M80 -52 L70 -112 L28 -68 Z" fill="#d9b7a8"/>'
+   +'<path d="M-52 -66 q26 -16 52 0 M-40 -86 q40 -20 80 0" stroke="#7d6f5c" stroke-width="7" fill="none" stroke-linecap="round"/>'
+   +'<ellipse cx="-34" cy="-6" rx="21" ry="24" fill="#f2f6e8"/><ellipse cx="34" cy="-6" rx="21" ry="24" fill="#f2f6e8"/>'
+   +'<ellipse cx="-34" cy="-4" rx="15" ry="21" fill="#8fae4a"/><ellipse cx="34" cy="-4" rx="15" ry="21" fill="#8fae4a"/>'
+   +'<ellipse cx="-34" cy="-2" rx="6" ry="17" fill="#241f1a"/><ellipse cx="34" cy="-2" rx="6" ry="17" fill="#241f1a"/>'
+   +'<circle cx="-28" cy="-12" r="5" fill="#fff" opacity=".85"/><circle cx="40" cy="-12" r="5" fill="#fff" opacity=".85"/>'
+   +'<path d="M-13 26 L13 26 L0 40 Z" fill="#c98b86"/>'
+   +'<path d="M0 40 q-16 16 -34 6 M0 40 q16 16 34 6" stroke="#6f6252" stroke-width="4" fill="none" stroke-linecap="round"/>'
+   +'<path d="M-96 12 L-46 22 M-96 34 L-46 34 M96 12 L46 22 M96 34 L46 34" stroke="#efe7d8" stroke-width="3" opacity=".8"/>'
+   +'<path d="M-62 96 q62 26 124 0" stroke="'+col+'" stroke-width="9" fill="none" stroke-linecap="round"/>'
+   +'<circle cx="0" cy="126" r="17" fill="'+col+'"/><circle cx="0" cy="126" r="7" fill="#efe9dd"/>'
+   +'</g>'
+   // bocadillo: por qué querría ser admirado
+   +'<g><rect x="34" y="212" width="356" height="164" rx="20" fill="#fdfbf6" opacity=".97"/>'
+   +'<path d="M170 374 L188 410 L208 374 Z" fill="#fdfbf6" opacity=".97"/>'
+   +'<text x="58" y="248" class="t s">QUERRÍA QUE LE ADMIRARAN POR</text>'
+   +txtSVG(adm,58,278,28,4,"t q",23)+'</g>'
+   // placa con el nombre
+   +'<g><rect x="250" y="690" width="400" height="86" fill="#8f9294" stroke="#6f7274" stroke-width="4"/>'
+   +'<rect x="258" y="698" width="384" height="70" fill="'+col+'"/>'
+   +'<text x="450" y="732" class="t n" text-anchor="middle">'+esc(recorta(nom,26))+'</text>'
+   +'<text x="450" y="756" class="t s" text-anchor="middle" fill="#f6efe6">RECUERDA SU NOMBRE</text></g>'
+   // taza con lo que le fascina
+   +'<g transform="translate(70,660)">'
+   +'<rect x="0" y="0" width="186" height="132" rx="14" fill="#efe9dd"/>'
+   +'<path d="M186 34 q42 30 0 62" stroke="#efe9dd" stroke-width="16" fill="none"/>'
+   +'<text x="16" y="34" class="t s">LE FASCINA</text>'
+   +txtSVG(fasc,16,60,17,3,"t p",22)+'</g>'
+   // libro con el cebo
+   +'<g transform="translate(640,650)">'
+   +'<rect x="-30" y="0" width="245" height="140" rx="8" fill="#2f3b46"/>'
+   +'<rect x="-20" y="10" width="225" height="120" rx="6" fill="none" stroke="#c9a961" stroke-width="2"/>'
+   +'<text x="-4" y="42" class="t s" fill="#c9a961">SU CEBO</text>'
+   +(cebo? txtSVG(cebo,-4,70,22,3,"t p",22).replace(/class="t p"/g,'class="t p" fill="#efe9dd"')
+        : '<text x="26" y="62" class="t p" fill="#8d97a1">sin definir</text>')
+   +'</g>'
+   // nota del gesto
+   +(gesto? '<g transform="translate(250,600)"><rect width="300" height="70" fill="#f3e08a" transform="rotate(-2)"/>'
+       +'<text x="16" y="26" class="t s" transform="rotate(-2)">EL GESTO PENDIENTE</text>'
+       +txtSVG(gesto,16,46,38,2,"t p",16).replace(/<text /g,'<text transform="rotate(-2)" ')+'</g>' : '')
+   +'</svg>';
+}
+function verEscena(id){
+  var p=ensure(byId(id)); if(!p) return;
+  var svg=escenaSVG(p);
+  var h='<h2>Retrato de '+esc(p.nombre)+'</h2>'
+    +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 12px">Su escena: lo que persigue, lo que le preocupa, lo que le fascina y su cebo, todo en una imagen. Dibujada aquí mismo, sin salir del dispositivo.</p>'
+    +'<div id="escenaBox" style="border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#3c4650">'+svg+'</div>'
+    +'<div class="modal-actions"><button class="btn" id="es_prompt">Copiar descripción para una IA</button>'
+    +'<button class="btn" id="es_png">Descargar imagen</button>'
+    +'<button class="btn" id="cancel">Cerrar</button></div>';
+  showModal(h);
+  var box=document.getElementById("escenaBox");
+  var s=box.querySelector("svg"); if(s){ s.setAttribute("width","100%"); s.removeAttribute("height"); }
+  document.getElementById("cancel").onclick=closeModal;
+  document.getElementById("es_png").onclick=function(){ descargarEscena(p,svg); };
+  document.getElementById("es_prompt").onclick=function(){
+    var t=promptEscena(p);
+    try{ navigator.clipboard.writeText(t); this.textContent="Copiada"; }catch(e){ alert(t); }
+  };
+}
+function descargarEscena(p,svg){
+  try{
+    var img=new Image();
+    var blob=new Blob([svg],{type:"image/svg+xml;charset=utf-8"});
+    var url=URL.createObjectURL(blob);
+    img.onload=function(){
+      var c=document.createElement("canvas"); c.width=900; c.height=900;
+      var x=c.getContext("2d"); x.drawImage(img,0,0,900,900);
+      URL.revokeObjectURL(url);
+      c.toBlob(function(b){
+        var a=document.createElement("a");
+        a.href=URL.createObjectURL(b);
+        a.download="retrato-"+(p.nombre||"ficha").replace(/[^\wáéíóúñÁÉÍÓÚÑ ]/g,"").trim().replace(/\s+/g,"-").toLowerCase()+".png";
+        a.click();
+        setTimeout(function(){ URL.revokeObjectURL(a.href); },1500);
+        toast("Imagen descargada");
+      },"image/png");
+    };
+    img.onerror=function(){ toast("No he podido convertirla. Prueba en el ordenador."); };
+    img.src=url;
+  }catch(e){ toast("No he podido descargarla."); }
+}
+function promptEscena(p){
+  var l=[];
+  l.push("Una fotografía cuadrada, realista y con humor sutil: un gato atigrado sentado con gesto serio en un despacho de madera con luz cálida de ventana, mirando a cámara.");
+  l.push("En la pared, cuadros enmarcados con estas frases, escritas en español y perfectamente legibles:");
+  if(p.exito) l.push('- Cuadro grande dorado: "'+recorta(p.exito,110)+'"');
+  if(p.preocupa) l.push('- Cuadro mediano: "'+recorta(p.preocupa,110)+'"');
+  if(p.admirado) l.push('- Bocadillo de pensamiento sobre el gato: "'+recorta(p.admirado,90)+'"');
+  if(p.fascina||p.aficiones) l.push('- Taza de café con el texto: "'+recorta(p.fascina||p.aficiones,45)+'"');
+  if(p.cebo||ceboDe(p)) l.push('- Lomo de un libro sobre la mesa: "'+recorta(p.cebo||ceboDe(p),50)+'"');
+  l.push('- Placa de bronce sobre la mesa con el nombre: "'+recorta(p.nombre,30)+'"');
+  if(p.aficiones) l.push("Objetos de atrezo relacionados con: "+recorta(p.aficiones,80)+".");
+  l.push("Estilo: fotografía de estudio, tonos cálidos y apagados, profundidad de campo suave, aire de retrato corporativo antiguo.");
+  return l.join("\n");
 }
 
 /* ---------- hipotesis ---------- */
@@ -1410,7 +1584,8 @@ function openEdit(id){
     +fld("¿En qué quiere tener éxito?","exito",p.exito,"ta")
     +fld("¿Por qué le gustaría sentirse admirado, y por quién?","admirado",p.admirado,"ta")
     +fld("¿Qué le hace sentir importante?","importante",p.importante,"ta")
-    +'<button class="btn" type="button" id="proponer">Proponer hipótesis según su perfil</button>'
+    +'<button class="btn" type="button" id="proponer">Proponer hipótesis según su perfil</button> '
+    +(isNew?'':'<button class="btn" type="button" onclick="verEscena(\''+p.id+'\')">Generar imagen</button>')
     +'<p style="color:var(--muted);font-size:11.5px;margin:8px 0 0">Lo que proponga son conjeturas para confirmar preguntando, nunca datos. Si te las crees sin comprobarlas, te construyes una persona que no existe.</p>'
     +'</fieldset>';
   h+='<fieldset><legend>Básico</legend><div class="cols">'
@@ -1603,13 +1778,22 @@ function dictar(el,btn){
   pararDictado();
   var R=window.SpeechRecognition||window.webkitSpeechRecognition;
   REC=new R(); REC.lang="es-ES"; REC.interimResults=true; REC.continuous=true;
+  REC.maxAlternatives=1;
   var base=(el.value||"").trim();
+  var firme="";
   RECBTN=btn; btn.classList.add("rec");
   REC.onresult=function(ev){
-    var txt="";
-    for(var i=0;i<ev.results.length;i++) txt+=ev.results[i][0].transcript;
-    txt=txt.trim();
-    if(txt) el.value = base ? base+" "+txt : txt.charAt(0).toUpperCase()+txt.slice(1);
+    var provisional="";
+    for(var i=ev.resultIndex;i<ev.results.length;i++){
+      var r=ev.results[i], t=(r[0]&&r[0].transcript)||"";
+      if(r.isFinal){
+        t=t.trim();
+        if(t && firme.slice(-t.length).toLowerCase()!==t.toLowerCase()) firme+=(firme?" ":"")+t;
+      } else provisional+=t;
+    }
+    var todo=(firme+" "+provisional).replace(/\s+/g," ").trim();
+    if(!todo) return;
+    el.value = base ? base+" "+todo : todo.charAt(0).toUpperCase()+todo.slice(1);
   };
   REC.onerror=function(ev){
     if(ev && ev.error==="not-allowed") alert("Chrome necesita permiso para el micrófono. Púlsalo en el candado de la barra de direcciones.");
@@ -1684,6 +1868,128 @@ function toast(t){
   if(!el){ el=document.createElement("div"); el.id="toast"; document.body.appendChild(el); }
   el.textContent=t; el.className="on";
   clearTimeout(toast.t); toast.t=setTimeout(function(){ el.className=""; },2600);
+}
+
+/* ---------- Google Drive automatico ---------- */
+var GD_CLIENT="887611717212-vc89q1jos6hmhpl0mg98am4lc1kjpffa.apps.googleusercontent.com";
+var GD={token:null,tokenClient:null,fileId:null,timer:null,expira:0};
+function gdSoportado(){ return location.protocol==="https:"; }
+function gdActivo(){ try{ return localStorage.getItem("mapaAmigos.gdrive")==="1"; }catch(e){ return false; } }
+function gdSet(v){ try{ v?localStorage.setItem("mapaAmigos.gdrive","1"):localStorage.removeItem("mapaAmigos.gdrive"); }catch(e){} }
+function gdListo(){ return typeof google!=="undefined" && google.accounts && google.accounts.oauth2; }
+function gdInit(cb){
+  if(GD.tokenClient) return cb&&cb();
+  var t=setInterval(function(){
+    if(gdListo()){
+      clearInterval(t);
+      GD.tokenClient=google.accounts.oauth2.initTokenClient({
+        client_id:GD_CLIENT,
+        scope:"https://www.googleapis.com/auth/drive.file",
+        callback:function(){}
+      });
+      cb&&cb();
+    }
+  },200);
+  setTimeout(function(){ clearInterval(t); },8000);
+}
+function gdToken(interactivo){
+  return new Promise(function(res,rej){
+    if(GD.token && Date.now()<GD.expira-60000) return res(GD.token);
+    gdInit(function(){
+      if(!GD.tokenClient) return rej(new Error("Google no cargó"));
+      GD.tokenClient.callback=function(r){
+        if(r && r.access_token){ GD.token=r.access_token; GD.expira=Date.now()+(r.expires_in||3000)*1000; res(GD.token); }
+        else rej(new Error("sin token"));
+      };
+      try{ GD.tokenClient.requestAccessToken({prompt: interactivo?"consent":""}); }catch(e){ rej(e); }
+    });
+  });
+}
+function gdBuscar(tok){
+  var q=encodeURIComponent("name='mapa-amigos.json' and trashed=false");
+  return fetch("https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q="+q+"&fields=files(id,modifiedTime)",
+    {headers:{Authorization:"Bearer "+tok}}).then(function(r){ return r.json(); })
+    .then(function(j){ var f=(j.files||[])[0]; GD.fileId=f?f.id:null; return f||null; });
+}
+function gdDescargar(tok){
+  if(!GD.fileId) return Promise.resolve(null);
+  return fetch("https://www.googleapis.com/drive/v3/files/"+GD.fileId+"?alt=media",
+    {headers:{Authorization:"Bearer "+tok}}).then(function(r){ return r.text(); })
+    .then(function(t){
+      var pass=getPass();
+      var intenta=function(txt){ var d=JSON.parse(txt); return (d&&Array.isArray(d.people))?d:null; };
+      try{ return intenta(t); }
+      catch(e){
+        if(pass) return descifrar(t,pass).then(intenta).catch(function(){ GD.claveMala=true; return null; });
+        GD.pideClave=true; return null;
+      }
+    }).catch(function(){ return null; });
+}
+function gdSubir(tok){
+  var txt=payload(), pass=getPass();
+  var prep = pass ? cifrar(txt,pass) : Promise.resolve(txt);
+  return prep.then(function(cont){
+    var meta={name:"mapa-amigos.json"};
+    if(!GD.fileId) meta.parents=["appDataFolder"];
+    var boundary="mapaamigos"+Date.now();
+    var body="--"+boundary+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+JSON.stringify(meta)
+      +"\r\n--"+boundary+"\r\nContent-Type: application/octet-stream\r\n\r\n"+cont+"\r\n--"+boundary+"--";
+    var url=GD.fileId
+      ? "https://www.googleapis.com/upload/drive/v3/files/"+GD.fileId+"?uploadType=multipart"
+      : "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart";
+    return fetch(url,{method:GD.fileId?"PATCH":"POST",
+      headers:{Authorization:"Bearer "+tok,"Content-Type":"multipart/related; boundary="+boundary},
+      body:body}).then(function(r){ return r.json(); })
+      .then(function(j){ if(j.id) GD.fileId=j.id; return true; });
+  });
+}
+function gdSyncSubir(){
+  if(!gdActivo()) return Promise.resolve(false);
+  return gdToken(false).then(function(tok){
+    return (GD.fileId?Promise.resolve():gdBuscar(tok)).then(function(){ return gdSubir(tok); })
+      .then(function(){ setSync("guardado en Drive "+new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})); revisarAvisos(); return true; });
+  }).catch(function(){ setSync("Drive: reconectar"); return false; });
+}
+function gdProgramar(){
+  if(!gdActivo()) return;
+  if(GD.timer) clearTimeout(GD.timer);
+  setSync("guardando en Drive…");
+  GD.timer=setTimeout(gdSyncSubir,1500);
+}
+function gdConectar(){
+  if(!gdSoportado()){ alert("La conexión con Drive necesita la app en su dirección de internet, no abierta como archivo."); return; }
+  gdToken(true).then(function(tok){
+    return gdBuscar(tok).then(function(f){
+      if(f) return gdDescargar(tok).then(function(d){
+        if(d && d.people.length){
+          if(!state.people.length){ aplicarDatos(d); gdSet(true); toast("Conectado a Drive. Cargadas "+d.people.length+" fichas."); openSync&&openSync(); return; }
+          gdSet(true); elegirComo(d,"desde Google Drive"); return;
+        }
+        gdSet(true); return gdSubir(tok).then(function(){ toast("Conectado a Drive. Se subieron tus fichas."); openSync&&openSync(); });
+      });
+      gdSet(true); return gdSubir(tok).then(function(){ toast("Conectado a Drive. Se subieron tus fichas."); openSync&&openSync(); });
+    });
+  }).catch(function(e){
+    alert("No se pudo conectar con Drive. Comprueba que iniciaste sesión con geselectiberica@gmail.com y que aceptaste el permiso.");
+  });
+}
+function gdArranque(){
+  if(!gdActivo() || !gdSoportado()) return;
+  setSync("Drive: conectando…");
+  gdToken(false).then(function(tok){
+    return gdBuscar(tok).then(function(f){
+      if(!f) return;
+      return gdDescargar(tok).then(function(d){
+        if(!d || !d.saved) return;
+        var local=savedLocal();
+        if(d.saved>local){
+          if(!state.people.length || d.people.length>=state.people.length){ aplicarDatos(d); toast("Actualizado desde Drive"); }
+          else elegirComo(d,"Drive tiene una versión más reciente");
+        }
+        setSync("Drive conectado");
+      });
+    });
+  }).catch(function(){ setSync("Drive: pulsa Sincronizar para reconectar"); });
 }
 
 /* ---------- cifrado extremo a extremo ---------- */
@@ -2045,9 +2351,20 @@ function openSync(){
     +(state.people.length?'':'<div class="warnbox">Esta copia está vacía. Antes de sincronizar, trae tus datos: <b>Traer de la carpeta</b> o <b>Copiar o pegar datos</b>. Si sincronizas en vacío no borro nada: te aviso y paro.</div>')
     +'<div id="syncInfo" class="'+(conectada?"okbox":"infobox")+'">'
     +(conectada?"Carpeta conectada. Cada cambio se guarda solo unos segundos después.":(puede?"Sin carpeta conectada todavía.":"Este navegador no puede escribir en carpetas: usa el botón de compartir o copia y pega los datos."))
-    +(FS.msg?'<br><span style="color:var(--muted)">Estado: '+esc(FS.msg)+'</span>':'')+'</div>';
+    +(FS.msg?'<br><span style="color:var(--muted)">Estado: '+esc(FS.msg)+'</span>':'')
+    +'<div id="comparador" style="margin-top:8px;font-size:12.5px"><b>Esta copia:</b> '+state.people.length+' fichas'
+    +(conectada?' · <span style="color:var(--muted)">comprobando la carpeta…</span>':'')+'</div></div>';
+  var gdon=gdActivo();
+  h+='<fieldset style="border-color:'+(gdon?"#3f7d5c":"var(--accent)")+'"><legend style="color:'+(gdon?"#3f7d5c":"var(--accent)")+'">Google Drive '+(gdon?"conectado":"— automático, móvil y ordenador")+'</legend>'
+    +'<p style="font-size:13px;margin:0 0 8px">'+(gdon
+      ? "La app se sincroniza sola con tu Drive: al abrirla trae lo último y al cambiar algo lo sube. No tienes que mover archivos."
+      : "Conéctalo una vez en cada dispositivo (con geselectiberica@gmail.com) y a partir de ahí se sincroniza solo, aquí y en el móvil, sin enviar ni traer nada.")+'</p>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
+    +'<button class="btn primary" id="gd_conectar">'+(gdon?"Reconectar":"Conectar Google Drive")+'</button>'
+    +(gdon?'<button class="btn" id="gd_ahora">Guardar ahora</button><button class="btn danger" id="gd_desconectar">Desconectar</button>':'')
+    +'</div></fieldset>';
   if(puede){
-    h+='<fieldset><legend>Automático (ordenador)</legend>'
+    h+='<fieldset><legend>Carpeta manual (alternativa)</legend>'
       +'<p style="font-size:13px;margin:0 0 8px">Elige una vez la carpeta <b>Mi unidad → Claude → App Amigos</b> de tu Drive y la app escribirá ahí <code>mapa-amigos.json</code> sola, cada vez que cambies algo. Es lo que lee tu aviso de las mañanas.</p>'
       +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
       +'<button class="btn primary" id="sy_conectar">'+(conectada?"Cambiar carpeta":"Conectar carpeta")+'</button>'
@@ -2084,6 +2401,9 @@ function openSync(){
   showModal(h);
   document.getElementById("cancel").onclick=closeModal;
   var b;
+  if((b=document.getElementById("gd_conectar"))) b.onclick=gdConectar;
+  if((b=document.getElementById("gd_desconectar"))) b.onclick=function(){ gdSet(false); GD.token=null; GD.fileId=null; toast("Drive desconectado en este dispositivo"); openSync(); };
+  if((b=document.getElementById("gd_ahora"))) b.onclick=function(){ gdSyncSubir().then(function(ok){ if(ok){ closeModal(); toast("Guardado en Drive"); } }); };
   if((b=document.getElementById("sy_conectar"))) b.onclick=conectarCarpeta;
   if((b=document.getElementById("sy_guardar"))) b.onclick=function(){ escribirCarpeta().then(function(ok){ if(ok){ closeModal(); } }); };
   if((b=document.getElementById("sy_traer"))) b.onclick=function(){
@@ -2114,6 +2434,31 @@ function openSync(){
      .then(function(){ toast("Carpeta local conectada"); openSync(); })
      .catch(function(){});
   };
+  if(FS.handle){
+    leerArchivo().then(function(d){
+      var c=document.getElementById("comparador"); if(!c) return;
+      if(!d){ c.innerHTML='<b>Esta copia:</b> '+state.people.length+' fichas · <span style="color:var(--accent)">no he podido leer la carpeta</span>'; return; }
+      var mias=state.people.length, suyas=d.people.length;
+      var f=faltantes(d), sobran=state.people.filter(function(p){
+        return !d.people.some(function(q){ return q.id===p.id || (q.nombre||"").trim().toLowerCase()===(p.nombre||"").trim().toLowerCase(); });
+      });
+      var h2='<b>Esta copia:</b> '+mias+' fichas &nbsp;·&nbsp; <b>Carpeta:</b> '+suyas+' fichas';
+      if(d.saved) h2+=' <span style="color:var(--muted)">('+fmtDate(d.saved)+')</span>';
+      if(f.length) h2+='<br><span style="color:var(--accent)">Solo en la carpeta: '+esc(f.map(function(q){return q.nombre;}).slice(0,6).join(", "))+'</span>';
+      if(sobran.length) h2+='<br><span style="color:#3f7d5c">Solo aquí: '+esc(sobran.map(function(q){return q.nombre;}).slice(0,6).join(", "))+'</span>';
+      if(!f.length && !sobran.length) h2+='<br><span style="color:#3f7d5c">Las dos copias tienen la misma gente.</span>';
+      if(f.length||sobran.length) h2+='<br><button class="btn sm" style="margin-top:6px" id="cmp_unir">Combinar las dos ahora</button>';
+      c.innerHTML=h2;
+      var bu=document.getElementById("cmp_unir");
+      if(bu) bu.onclick=function(){
+        var antes=state.people.length;
+        state.people=fusionar(state.people,d.people||[]);
+        if(d.me) Object.keys(d.me).forEach(function(k){ state.me[k]=unirTexto(state.me[k],d.me[k]); });
+        save(); renderSeg(); renderAll(); closeModal();
+        escribirCarpeta(true).then(function(){ toast("Combinado: "+antes+" → "+state.people.length+" fichas"); });
+      };
+    }).catch(function(){});
+  }
   document.getElementById("sy_enviar").onclick=enviarArchivo;
   document.getElementById("sy_importar").onclick=function(){ document.getElementById("file").click(); };
   document.getElementById("sy_pegar").onclick=openPaste;
@@ -2259,6 +2604,8 @@ function renderInforme(){
       h+=infLista("Por dónde empezar",g.abrir);
       h+=infLista("Preguntas para que hable "+EL(p),g.preguntas);
       h+=infLista("Los tres síes antes de pedir",g.sies);
+      h+=infLista("Que le apetezca hacerlo",g.feliz);
+      h+=infLista("Si necesitas que corrija algo",g.defectos);
       h+=infLista("Cuando hable de lo suyo",g.reaccion);
       h+=infLista("Cómo ayudarle",g.ayuda);
       h+=infLista("Si algo sale mal",g.mal);
@@ -2321,6 +2668,7 @@ seedIfEmpty();
 renderSeg();
 document.querySelectorAll(".tabs button").forEach(function(b){ b.onclick=function(){ setTab(b.dataset.tab); }; });
 document.getElementById("q").oninput=function(e){ state.q=e.target.value; renderAll(); };
+document.getElementById("qclear").onclick=function(){ var q=document.getElementById("q"); q.value=""; state.q=""; renderAll(); q.focus(); };
 document.getElementById("fGrupo").onchange=function(e){ state.grupo=e.target.value; renderAll(); };
 document.getElementById("add").onclick=function(){ openEdit(null); };
 document.getElementById("meBtn").onclick=openMe;
@@ -2342,9 +2690,10 @@ renderAll();
 lockIfNeeded();
 try{ restaurarCarpeta(); }catch(e){}
 setTimeout(function(){ try{ comprobarVersion(); }catch(e){} },1500);
+try{ gdArranque(); }catch(e){}
 var ve=document.getElementById("verEt"); if(ve) ve.onclick=actualizarApp;
 try{ if(location.protocol==="https:"&&"serviceWorker" in navigator) navigator.serviceWorker.register("sw.js"); }catch(e){}
-window.openEdit=openEdit; window.openGuion=openGuion; window.openPlan=openPlan; window.borrarPersona=borrarPersona; window.verSector=verSector;
+window.openEdit=openEdit; window.openGuion=openGuion; window.openPlan=openPlan; window.borrarPersona=borrarPersona; window.verSector=verSector; window.verEscena=verEscena;
 window.openCita=openCita; window.openFeedback=openFeedback; window.openNota=openNota; window.editarNota=editarNota; window.borrarNota=borrarNota; window.sincronizarYa=sincronizarYa; window.openSync=openSync; window.actualizarApp=actualizarApp; window.openSync=openSync;
 </script>
 </body>
