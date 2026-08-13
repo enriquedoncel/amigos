@@ -232,7 +232,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 <div class="wrap">
   <header class="top">
     <div class="titlewrap"><div class="title"><h1>Mapa de amigos</h1><small id="count"></small></div>
-      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.12-4</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
+      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.12-5</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
     <div class="tabs">
       <button data-tab="fichas" class="on">Fichas</button>
       <button data-tab="citas">Citas</button>
@@ -297,7 +297,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 
 <script>
 "use strict";
-var VERSION="2026.08.12-4";
+var VERSION="2026.08.12-5";
 var KEY="mapaAmigos.v3";
 var MOTS=[
   ["salud","Salud y vida"],["sustento","Alimento y descanso"],["dinero","Dinero y lo que compra"],
@@ -382,7 +382,7 @@ function newPerson(){
   return { id:uid(), tipo:"amigo", genero:"", nombre:"", apodo:"", ciudad:"", grupo:"", comoConocimos:"",
     pareja:"", hijos:"", familia:"", empleo:"", empresa:"", sector:"",
     aficiones:"", deportes:"", musica:"", comida:"", temas:"", evitar:"",
-    exito:"", admirado:"", importante:"", preocupa:"", fascina:"", ayuda:"", logros:"",
+    exito:"", admirado:"", importante:"", preocupa:"", fascina:"", ayuda:"", logros:"", estilo:"",
     quienesImportan:"", queQuierenLosSuyos:"", gustosDeLosSuyos:"", gesto:"",
     meAporta:"", necesito:"", buscaDeMi:"", problema:"", presume:"", cebo:"",
     nosUne:"", nosSepara:"", hitos:"", sies:"",
@@ -396,7 +396,7 @@ function ensure(p){
   if(p.tipo==="trabajo") p.tipo="profesional";
   if(p.tipo==="personal") p.tipo="amigo";
   if(!p.tipo) p.tipo="amigo";
-  ["genero","exito","admirado","importante","preocupa","fascina","ayuda","logros","sector","meAporta","necesito","buscaDeMi","problema","presume","cebo","discurso","nosUne","nosSepara","hitos","sies","quienesImportan","queQuierenLosSuyos","gustosDeLosSuyos","gesto"]
+  ["genero","exito","admirado","importante","preocupa","fascina","ayuda","logros","estilo","sector","meAporta","necesito","buscaDeMi","problema","presume","cebo","discurso","nosUne","nosSepara","hitos","sies","quienesImportan","queQuierenLosSuyos","gustosDeLosSuyos","gesto"]
     .forEach(function(k){ if(p[k]==null) p[k]=""; });
   ["conexiones","notas","encuentros","pasos"].forEach(function(k){ if(!Array.isArray(p[k])) p[k]=[]; });
   return p;
@@ -405,7 +405,7 @@ function ensure(p){
 /* ---------- filtros ---------- */
 function haystack(p){
   var s=[p.nombre,p.apodo,p.ciudad,p.grupo,p.comoConocimos,p.pareja,p.hijos,p.familia,p.empleo,p.empresa,p.sector,
-    p.aficiones,p.deportes,p.musica,p.comida,p.temas,p.evitar,p.exito,p.admirado,p.importante,p.preocupa,p.fascina,p.ayuda,p.logros,
+    p.aficiones,p.deportes,p.musica,p.comida,p.temas,p.evitar,p.exito,p.admirado,p.importante,p.estilo,p.preocupa,p.fascina,p.ayuda,p.logros,
     p.meAporta,p.necesito,p.buscaDeMi,p.problema,p.presume,p.cebo,p.nosUne,p.nosSepara,p.hitos,p.sies,p.quienesImportan,p.queQuierenLosSuyos,p.gustosDeLosSuyos,p.gesto].join(" ");
   MOTS.forEach(function(x){ s+=" "+(p.mot[x[0]].t||""); });
   (p.notas||[]).forEach(function(n){ s+=" "+n.t; });
@@ -588,6 +588,7 @@ function generarDiscurso(p){
     L.push("   Y cuando lo diga, es suyo. Reconóceselo y no lo reclames.");
   } else {
     L.push("1. POR DÓNDE ENTRAR");
+    if(esF(p) && p.estilo) L.push("   Un cumplido sincero al llegar: «me encanta cómo vistes, ese "+lower1(p.estilo)+" te sienta muy bien, se nota tu gusto». Breve y de verdad; después, directo a lo suyo.");
     L.push("   "+(p.fascina||p.aficiones ? "Habla primero de "+lower1(p.fascina||splitList(p.aficiones)[0])+": es lo suyo."
       : gap("un tema que le encienda")));
     L.push("");
@@ -1063,6 +1064,9 @@ function buildGuion(p){
   var cum=nextAnniversary(p.cumple);
   if(cum&&daysBetween(today(),cum)<=14) abrir.push("Su cumpleaños es el "+cum.toLocaleDateString("es-ES",{day:"numeric",month:"long"})+": felicítale sin que parezca de agenda.");
   if(!abrir.length) abrir.push("Abre preguntando por algo suyo, no por ti: cómo le ha ido en "+(lower1(p.empleo)||"lo suyo")+".");
+  if(esF(p) && p.estilo){
+    abrir.unshift("Un comentario sincero sobre su estilo puede abrir bien: «te queda genial ese "+lower1(p.estilo)+", tienes muy buen gusto vistiendo». Dilo solo si es de verdad y sigue enseguida con lo suyo; nunca lo conviertas en el tema, ni insistas.");
+  }
   g.abrir=abrir;
   var quiere=[];
   if(p.exito) quiere.push("Para "+EL(p)+", ganar es: "+p.exito);
@@ -1636,7 +1640,8 @@ function openEdit(id){
     +fld("Aficiones (separadas por comas)","aficiones",p.aficiones)
     +'<div class="cols">'+fld("Deporte / equipo","deportes",p.deportes)+fld("Música","musica",p.musica)
     +fld("Comida y bebida","comida",p.comida)+fld("Temas que le encienden","temas",p.temas)+'</div>'
-    +fld("Temas a evitar","evitar",p.evitar)+'</fieldset>';
+    +fld("Temas a evitar","evitar",p.evitar)
+    +(esF(p)?fld("Cómo suele vestir / su estilo","estilo",p.estilo,"ta"):"")+'</fieldset>';
   var citaProx=nextMeeting(p);
   h+='<fieldset><legend>Fechas</legend><div class="cols3">'
     +fld("Cumpleaños","cumple",p.cumple,"date")
@@ -1728,7 +1733,7 @@ function fld(label,key,val,type){
 function commit(p,isNew){
   ["nombre","apodo","ciudad","grupo","sector","comoConocimos","pareja","hijos","familia","empleo","empresa",
    "exito","admirado","importante","preocupa","fascina","ayuda","logros","quienesImportan","queQuierenLosSuyos","gustosDeLosSuyos","gesto",
-   "aficiones","deportes","musica","comida","temas","evitar","cumple","aniversario","ultimoContacto"]
+   "aficiones","deportes","musica","comida","temas","evitar","estilo","cumple","aniversario","ultimoContacto"]
    .forEach(function(k){ var e=document.getElementById("f_"+k); if(e) p[k]=e.value.trim(); });
   p.tipo=document.getElementById("f_tipo").value;
   var pc=document.getElementById("f_proximaCita");
