@@ -232,7 +232,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 <div class="wrap">
   <header class="top">
     <div class="titlewrap"><div class="title"><h1>Mapa de amigos</h1><small id="count"></small></div>
-      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.12-6</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
+      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.12-7</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
     <div class="tabs">
       <button data-tab="fichas" class="on">Fichas</button>
       <button data-tab="citas">Citas</button>
@@ -297,7 +297,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 
 <script>
 "use strict";
-var VERSION="2026.08.12-6";
+var VERSION="2026.08.12-7";
 var KEY="mapaAmigos.v3";
 var MOTS=[
   ["salud","Salud y vida"],["sustento","Alimento y descanso"],["dinero","Dinero y lo que compra"],
@@ -1915,16 +1915,18 @@ function gdInit(cb){
   },200);
   setTimeout(function(){ clearInterval(t); },8000);
 }
-function gdToken(interactivo){
+function gdToken(prompt){
   return new Promise(function(res,rej){
     if(GD.token && Date.now()<GD.expira-60000) return res(GD.token);
     gdInit(function(){
-      if(!GD.tokenClient) return rej(new Error("Google no cargó"));
+      if(!GD.tokenClient) return rej(new Error("Google no cargó. Comprueba tu conexión."));
       GD.tokenClient.callback=function(r){
+        if(r && r.error){ rej(new Error(r.error)); return; }
         if(r && r.access_token){ GD.token=r.access_token; GD.expira=Date.now()+(r.expires_in||3000)*1000; res(GD.token); }
         else rej(new Error("sin token"));
       };
-      try{ GD.tokenClient.requestAccessToken({prompt: interactivo?"consent":""}); }catch(e){ rej(e); }
+      GD.tokenClient.error_callback=function(e){ rej(new Error((e&&e.type)||"cerrado")); };
+      try{ GD.tokenClient.requestAccessToken({prompt: (prompt===undefined?"":prompt)}); }catch(e){ rej(e); }
     });
   });
 }
@@ -1968,7 +1970,7 @@ function gdSubir(tok){
 }
 function gdSyncSubir(){
   if(!gdActivo()) return Promise.resolve(false);
-  return gdToken(false).then(function(tok){
+  return gdToken("").then(function(tok){
     return (GD.fileId?Promise.resolve():gdBuscar(tok)).then(function(){ return gdSubir(tok); })
       .then(function(){
         var marca=""; try{ marca=JSON.parse(payload()).saved; }catch(e){}
@@ -1990,7 +1992,7 @@ function apagarCarpeta(){
 }
 function gdConectar(){
   if(!gdSoportado()){ alert("La conexión con Drive necesita la app en su dirección de internet, no abierta como archivo."); return; }
-  gdToken(true).then(function(tok){
+  gdToken("consent").then(function(tok){
     return gdBuscar(tok).then(function(f){
       if(f) return gdDescargar(tok).then(function(d){
         if(d && d.people.length){
@@ -2002,13 +2004,17 @@ function gdConectar(){
       gdSet(true); apagarCarpeta(); return gdSubir(tok).then(function(){ setSyncMeta({driveGuardado:savedLocal()}); toast("Conectado a Drive. Se subieron tus fichas."); openSync&&openSync(); });
     });
   }).catch(function(e){
-    alert("No se pudo conectar con Drive. Comprueba que iniciaste sesión con tu cuenta de Google y que aceptaste el permiso.");
+    var m=(e&&e.message)||"";
+    if(m.indexOf("access_denied")>=0||m==="cerrado")
+      alert("Se canceló el permiso.\n\nVuelve a pulsar Conectar Google Drive y, cuando salga la pantalla «Mapa de amigos quiere acceder a tu Google Drive», pulsa PERMITIR. Si antes aparece «app no verificada», pulsa «Configuración avanzada» y luego «Ir a Mapa de amigos».");
+    else
+      alert("No se pudo conectar con Drive.\n\nDetalle: "+m+"\n\nAsegúrate de tener conexión y de que tu correo está añadido como usuario de prueba. Vuelve a intentarlo.");
   });
 }
 function gdArranque(){
   if(!gdActivo() || !gdSoportado()) return;
   setSync("Drive: conectando…");
-  gdToken(false).then(function(tok){
+  gdToken("").then(function(tok){
     return gdBuscar(tok).then(function(f){
       if(!f) return;
       return gdDescargar(tok).then(function(d){
@@ -2023,7 +2029,7 @@ function gdArranque(){
         setSync("Drive conectado"); revisarAvisos();
       });
     });
-  }).catch(function(){ setSync("Drive: pulsa Sincronizar para reconectar"); });
+  }).catch(function(){ setSync("Drive: pulsa Sincronizar para reconectar"); revisarAvisos(); });
 }
 
 /* ---------- cifrado extremo a extremo ---------- */
@@ -2496,10 +2502,10 @@ function openSync(){
       };
     }).catch(function(){});
   }
-  document.getElementById("sy_enviar").onclick=enviarArchivo;
-  document.getElementById("sy_importar").onclick=function(){ document.getElementById("file").click(); };
-  document.getElementById("sy_pegar").onclick=openPaste;
-  document.getElementById("sy_exportar").onclick=exportJSON;
+  if((b=document.getElementById("sy_enviar"))) b.onclick=enviarArchivo;
+  if((b=document.getElementById("sy_importar"))) b.onclick=function(){ document.getElementById("file").click(); };
+  if((b=document.getElementById("sy_pegar"))) b.onclick=openPaste;
+  if((b=document.getElementById("sy_exportar"))) b.onclick=exportJSON;
 }
 
 function revisarAvisos(){
@@ -2733,6 +2739,7 @@ renderAll();
 lockIfNeeded();
 try{ restaurarCarpeta(); }catch(e){}
 setTimeout(function(){ try{ comprobarVersion(); }catch(e){} },1500);
+try{ gdInit(); }catch(e){}
 try{ gdArranque(); }catch(e){}
 var ve=document.getElementById("verEt"); if(ve) ve.onclick=actualizarApp;
 try{ if(location.protocol==="https:"&&"serviceWorker" in navigator) navigator.serviceWorker.register("sw.js"); }catch(e){}
