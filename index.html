@@ -232,7 +232,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 <div class="wrap">
   <header class="top">
     <div class="titlewrap"><div class="title"><h1>Mapa de amigos</h1><small id="count"></small></div>
-      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.12-7</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
+      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.12-8</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
     <div class="tabs">
       <button data-tab="fichas" class="on">Fichas</button>
       <button data-tab="citas">Citas</button>
@@ -297,7 +297,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 
 <script>
 "use strict";
-var VERSION="2026.08.12-7";
+var VERSION="2026.08.12-8";
 var KEY="mapaAmigos.v3";
 var MOTS=[
   ["salud","Salud y vida"],["sustento","Alimento y descanso"],["dinero","Dinero y lo que compra"],
@@ -2436,10 +2436,12 @@ function openSync(){
       +'<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="cf_local">'+(FS.local?'Cambiar carpeta local':'Elegir carpeta local')+'</button>'
       +(FS.local?'<span class="syncst" style="align-self:center">conectada</span>':'')+'</div></fieldset>';
   }
-  h+='<fieldset><legend>A mano</legend>'
+  h+='<fieldset><legend>Copiar / traer a mano (siempre funciona)</legend>'
+    +'<p style="font-size:12.5px;color:var(--muted);margin:0 0 8px">Para pasar datos entre móvil y ordenador sin depender de nada: descarga una copia en un aparato, mándatela, y en el otro pulsa «Traer un archivo».</p>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
-    +'<button class="btn" id="sy_pegar">Copiar o pegar datos</button>'
-    +'<button class="btn" id="sy_exportar">Descargar copia</button></div></fieldset>';
+    +'<button class="btn primary" id="sy_descargar">Descargar copia</button>'
+    +'<button class="btn primary" id="sy_traerarch">Traer un archivo</button>'
+    +'<button class="btn" id="sy_pegar">Copiar o pegar texto</button></div></fieldset>';
   h+='<div class="modal-actions"><button class="btn" id="cancel">Cerrar</button></div>';
   showModal(h);
   document.getElementById("cancel").onclick=closeModal;
@@ -2502,6 +2504,8 @@ function openSync(){
       };
     }).catch(function(){});
   }
+  if((b=document.getElementById("sy_descargar"))) b.onclick=function(){ exportJSON(); toast("Copia descargada. Mándatela al otro aparato."); };
+  if((b=document.getElementById("sy_traerarch"))) b.onclick=function(){ document.getElementById("file").click(); };
   if((b=document.getElementById("sy_enviar"))) b.onclick=enviarArchivo;
   if((b=document.getElementById("sy_importar"))) b.onclick=function(){ document.getElementById("file").click(); };
   if((b=document.getElementById("sy_pegar"))) b.onclick=openPaste;
@@ -2537,12 +2541,15 @@ function revisarAvisos(){
 
 /* ---------- pegar datos ---------- */
 function openPaste(){
-  var h='<h2>Pegar datos</h2>'
-    +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 12px">Pega aquí el contenido del archivo mapa-amigos.json. Útil en el móvil, donde elegir archivos es incómodo.</p>'
-    +'<textarea id="pasteBox" style="min-height:180px" placeholder="{ &quot;people&quot;: [ ... ] }"></textarea>'
-    +'<div class="modal-actions"><button class="btn" id="copyAll">Copiar mis datos</button>'
-    +'<button class="btn" id="cancel">Cancelar</button><button class="btn primary" id="ok">Cargar</button></div>';
+  var h='<h2>Copiar o pegar datos</h2>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+    +'<button class="btn primary" id="copyAll">Copiar mis datos</button>'
+    +'<button class="btn primary" id="ok">Cargar lo pegado</button>'
+    +'<button class="btn" id="cancel">Cerrar</button></div>'
+    +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 8px">Para copiar: pulsa «Copiar mis datos». Para cargar: pega el texto en el recuadro y pulsa «Cargar lo pegado».</p>'
+    +'<textarea id="pasteBox" style="min-height:220px;width:100%" placeholder="Pega aquí el texto…"></textarea>';
   showModal(h);
+  setTimeout(function(){ var t=document.getElementById("pasteBox"); if(t){ try{ t.focus(); if(t.scrollIntoView) t.scrollIntoView({block:"center"}); }catch(e){} } },200);
   document.getElementById("cancel").onclick=closeModal;
   document.getElementById("copyAll").onclick=function(){
     var t=JSON.stringify({people:state.people,me:state.me,v:3},null,2);
