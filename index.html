@@ -232,7 +232,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 <div class="wrap">
   <header class="top">
     <div class="titlewrap"><div class="title"><h1>Mapa de amigos</h1><small id="count"></small></div>
-      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.12-5</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
+      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.12-6</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
     <div class="tabs">
       <button data-tab="fichas" class="on">Fichas</button>
       <button data-tab="citas">Citas</button>
@@ -297,7 +297,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 
 <script>
 "use strict";
-var VERSION="2026.08.12-5";
+var VERSION="2026.08.12-6";
 var KEY="mapaAmigos.v3";
 var MOTS=[
   ["salud","Salud y vida"],["sustento","Alimento y descanso"],["dinero","Dinero y lo que compra"],
@@ -344,7 +344,7 @@ function save(){
   try{ localStorage.setItem(KEY,JSON.stringify({people:state.people,me:state.me,v:3,saved:new Date().toISOString()})); }
   catch(e){ if(!save.warned){ save.warned=true;
     alert("Este navegador no permite guardar datos localmente. Usa Sincronizar para no perder lo que escribas."); } }
-  try{ programarSync(); gdProgramar(); revisarAvisos(); }catch(e){}
+  try{ if(gdActivo()){ gdProgramar(); } else { programarSync(); } revisarAvisos(); }catch(e){}
 }
 function uid(){ return "p"+Math.random().toString(36).slice(2,9); }
 function applySeed(){
@@ -1970,8 +1970,13 @@ function gdSyncSubir(){
   if(!gdActivo()) return Promise.resolve(false);
   return gdToken(false).then(function(tok){
     return (GD.fileId?Promise.resolve():gdBuscar(tok)).then(function(){ return gdSubir(tok); })
-      .then(function(){ setSync("guardado en Drive "+new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})); revisarAvisos(); return true; });
-  }).catch(function(){ setSync("Drive: reconectar"); return false; });
+      .then(function(){
+        var marca=""; try{ marca=JSON.parse(payload()).saved; }catch(e){}
+        setSyncMeta({driveGuardado:savedLocal()});
+        GD.error=false;
+        setSync("guardado en Drive "+new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})); revisarAvisos(); return true;
+      });
+  }).catch(function(){ GD.error=true; setSync("Drive: pulsa Reconectar"); revisarAvisos(); return false; });
 }
 function gdProgramar(){
   if(!gdActivo()) return;
@@ -1979,18 +1984,22 @@ function gdProgramar(){
   setSync("guardando en Drive…");
   GD.timer=setTimeout(gdSyncSubir,1500);
 }
+function apagarCarpeta(){
+  FS.handle=null;
+  try{ idbSet("dir",null); }catch(e){}
+}
 function gdConectar(){
   if(!gdSoportado()){ alert("La conexión con Drive necesita la app en su dirección de internet, no abierta como archivo."); return; }
   gdToken(true).then(function(tok){
     return gdBuscar(tok).then(function(f){
       if(f) return gdDescargar(tok).then(function(d){
         if(d && d.people.length){
-          if(!state.people.length){ aplicarDatos(d); gdSet(true); toast("Conectado a Drive. Cargadas "+d.people.length+" fichas."); openSync&&openSync(); return; }
-          gdSet(true); elegirComo(d,"desde Google Drive"); return;
+          if(!state.people.length){ aplicarDatos(d); gdSet(true); apagarCarpeta(); setSyncMeta({driveGuardado:savedLocal()}); toast("Conectado a Drive. Cargadas "+d.people.length+" fichas."); openSync&&openSync(); return; }
+          gdSet(true); apagarCarpeta(); elegirComo(d,"desde Google Drive"); return;
         }
-        gdSet(true); return gdSubir(tok).then(function(){ toast("Conectado a Drive. Se subieron tus fichas."); openSync&&openSync(); });
+        gdSet(true); apagarCarpeta(); return gdSubir(tok).then(function(){ setSyncMeta({driveGuardado:savedLocal()}); toast("Conectado a Drive. Se subieron tus fichas."); openSync&&openSync(); });
       });
-      gdSet(true); return gdSubir(tok).then(function(){ toast("Conectado a Drive. Se subieron tus fichas."); openSync&&openSync(); });
+      gdSet(true); apagarCarpeta(); return gdSubir(tok).then(function(){ setSyncMeta({driveGuardado:savedLocal()}); toast("Conectado a Drive. Se subieron tus fichas."); openSync&&openSync(); });
     });
   }).catch(function(e){
     alert("No se pudo conectar con Drive. Comprueba que iniciaste sesión con tu cuenta de Google y que aceptaste el permiso.");
@@ -2003,13 +2012,15 @@ function gdArranque(){
     return gdBuscar(tok).then(function(f){
       if(!f) return;
       return gdDescargar(tok).then(function(d){
-        if(!d || !d.saved) return;
-        var local=savedLocal();
-        if(d.saved>local){
-          if(!state.people.length || d.people.length>=state.people.length){ aplicarDatos(d); toast("Actualizado desde Drive"); }
-          else elegirComo(d,"Drive tiene una versión más reciente");
+        setSyncMeta({driveGuardado:savedLocal()}); GD.error=false;
+        if(d && d.saved){
+          var local=savedLocal();
+          if(d.saved>local){
+            if(!state.people.length || d.people.length>=state.people.length){ aplicarDatos(d); setSyncMeta({driveGuardado:savedLocal()}); toast("Actualizado desde Drive"); }
+            else elegirComo(d,"Drive tiene una versión más reciente");
+          }
         }
-        setSync("Drive conectado");
+        setSync("Drive conectado"); revisarAvisos();
       });
     });
   }).catch(function(){ setSync("Drive: pulsa Sincronizar para reconectar"); });
@@ -2086,6 +2097,7 @@ function permiso(hd,pedir){
   });
 }
 function sincronizarYa(){
+  if(gdActivo()){ gdSyncSubir().then(function(ok){ toast(ok?"Guardado en Drive":"No he podido guardar en Drive. Abre \u22ef y pulsa Reconectar."); }); return; }
   if(FS.handle){
     escribirCarpeta().then(function(ok){ toast(ok?"Guardado en la carpeta":"No he podido guardar. Abre las opciones con ⋯"); });
     return;
@@ -2373,7 +2385,7 @@ function openSync(){
     +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 12px">Tus datos viven en este dispositivo. Esto los copia a la carpeta que compartes entre ordenador y móvil.</p>'
     +(state.people.length?'':'<div class="warnbox">Esta copia está vacía. Antes de sincronizar, trae tus datos: <b>Traer de la carpeta</b> o <b>Copiar o pegar datos</b>. Si sincronizas en vacío no borro nada: te aviso y paro.</div>')
     +'<div id="syncInfo" class="'+(conectada?"okbox":"infobox")+'">'
-    +(conectada?"Carpeta conectada. Cada cambio se guarda solo unos segundos después.":(puede?"Sin carpeta conectada todavía.":"Este navegador no puede escribir en carpetas: usa el botón de compartir o copia y pega los datos."))
+    +(gdActivo()?"Sincronización automática con Google Drive activa.":(conectada?"Carpeta conectada. Cada cambio se guarda solo unos segundos después.":(puede?"Sin carpeta conectada todavía.":"Este navegador no puede escribir en carpetas: usa el botón de compartir o copia y pega los datos.")))
     +(FS.msg?'<br><span style="color:var(--muted)">Estado: '+esc(FS.msg)+'</span>':'')
     +'<div id="comparador" style="margin-top:8px;font-size:12.5px"><b>Esta copia:</b> '+state.people.length+' fichas'
     +(conectada?' · <span style="color:var(--muted)">comprobando la carpeta…</span>':'')+'</div></div>';
@@ -2386,7 +2398,7 @@ function openSync(){
     +'<button class="btn primary" id="gd_conectar">'+(gdon?"Reconectar":"Conectar Google Drive")+'</button>'
     +(gdon?'<button class="btn" id="gd_ahora">Guardar ahora</button><button class="btn danger" id="gd_desconectar">Desconectar</button>':'')
     +'</div></fieldset>';
-  if(puede){
+  if(puede && !gdActivo()){
     h+='<fieldset><legend>Carpeta manual (alternativa)</legend>'
       +'<p style="font-size:13px;margin:0 0 8px">Elige una vez la carpeta <b>Mi unidad → Claude → App Amigos</b> de tu Drive y la app escribirá ahí <code>mapa-amigos.json</code> sola, cada vez que cambies algo. Es lo que lee tu aviso de las mañanas.</p>'
       +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
@@ -2394,11 +2406,13 @@ function openSync(){
       +(conectada?'<button class="btn" id="sy_guardar">Guardar ahora</button><button class="btn" id="sy_traer">Traer de la carpeta</button>':'')
       +'</div></fieldset>';
   }
+  if(!gdActivo()){
   h+='<fieldset><legend>Móvil</legend>'
     +'<p style="font-size:13px;margin:0 0 8px">Manda el archivo con el menú de compartir de Android y guárdalo en <b>Drive → Claude → App Amigos</b>, sustituyendo el anterior.</p>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap">'
     +'<button class="btn primary" id="sy_enviar">Enviar a Drive</button>'
     +'<button class="btn" id="sy_importar">Traer un archivo</button></div></fieldset>';
+  }
   var pass=getPass();
   h+='<fieldset style="border-color:'+(pass?'#3f7d5c':'var(--line)')+'"><legend style="color:'+(pass?'#3f7d5c':'var(--muted)')+'">Cifrado '+(pass?'activado':'desactivado')+'</legend>'
     +'<p style="font-size:13px;margin:0 0 8px">'+(pass
@@ -2457,7 +2471,7 @@ function openSync(){
      .then(function(){ toast("Carpeta local conectada"); openSync(); })
      .catch(function(){});
   };
-  if(FS.handle){
+  if(FS.handle && !gdActivo()){
     leerArchivo().then(function(d){
       var c=document.getElementById("comparador"); if(!c) return;
       if(!d){ c.innerHTML='<b>Esta copia:</b> '+state.people.length+' fichas · <span style="color:var(--accent)">no he podido leer la carpeta</span>'; return; }
@@ -2490,25 +2504,28 @@ function openSync(){
 
 function revisarAvisos(){
   var el=document.getElementById("aviso"); if(!el) return;
-  var m=syncMeta(), local=savedLocal(), msg="", ok=false;
-  if(state.people.length){
+  var m=syncMeta(), local=savedLocal(), msg="", accion="sincronizarYa()", etiqueta="Sincronizar ahora";
+  if(gdActivo()){
+    // con Drive todo es automatico: solo avisamos si algo va mal o falta cifrar
+    if(GD.error){ msg="No se pudo guardar en Drive. Pulsa Reconectar."; accion="openSync()"; etiqueta="Reconectar"; }
+    else if(GD.pideClave){ msg="Lo de Drive está cifrado y aquí no tienes la contraseña."; accion="openSync()"; etiqueta="Poner contraseña"; }
+    else if(GD.claveMala){ msg="La contraseña no abre el archivo de Drive. Revísala."; accion="openSync()"; etiqueta="Poner contraseña"; }
+    else if(!getPass()){ msg="Drive conectado, pero tus datos suben SIN cifrar. Pon una contraseña para que ni Google pueda leerlos."; accion="openSync()"; etiqueta="Poner contraseña"; }
+  } else if(state.people.length){
     if(FS.handle){
       if(local && m.ultimaEscritura && local>m.ultimaEscritura) msg="Hay cambios sin guardar en la carpeta.";
     } else {
       var env=m.ultimoEnvio||"";
-      if(!env) msg="Estos datos todavía no están en la carpeta compartida.";
+      if(!env) msg="Estos datos aún no se sincronizan. Conecta Google Drive en Sincronizar.";
       else if(local>env){
         var dias=Math.max(0,Math.round((new Date(local)-new Date(env))/86400000));
-        msg = dias>=1 ? "Llevas "+dias+" día"+(dias===1?"":"s")+" de cambios sin enviar a la carpeta." : "Tienes cambios sin enviar a la carpeta.";
+        msg = dias>=1 ? "Llevas "+dias+" día"+(dias===1?"":"s")+" de cambios sin sincronizar." : "Tienes cambios sin sincronizar.";
       }
+      accion="openSync()"; etiqueta="Sincronizar";
     }
   }
-  if(gdActivo() && !getPass() && !msg) msg="Drive está conectado, pero tus datos suben SIN cifrar. Pon una contraseña de cifrado para que ni Google pueda leerlos.";
-  if(FS.pideClave) msg="El archivo de la carpeta está cifrado y aquí no tienes la contraseña.";
-  else if(FS.claveMala) msg="La contraseña no abre el archivo de la carpeta. Revísala.";
-  var cifraAviso = gdActivo() && !getPass();
   el.innerHTML = msg
-    ? '<div class="banner'+(ok?" ok":"")+'"><span style="flex:1">'+esc(msg)+'</span><button class="btn sm" onclick="openSync()">'+((FS.pideClave||FS.claveMala||cifraAviso)?'Poner contraseña':'Sincronizar ahora')+'</button></div>'
+    ? '<div class="banner"><span style="flex:1">'+esc(msg)+'</span><button class="btn sm" onclick="'+accion+'">'+etiqueta+'</button></div>'
     : "";
 }
 
