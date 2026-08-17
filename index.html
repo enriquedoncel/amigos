@@ -239,7 +239,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 <div class="wrap">
   <header class="top">
     <div class="titlewrap"><div class="title"><h1>Mapa de amigos</h1><small id="count"></small></div>
-      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.14-11</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
+      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.15-12</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
     <div class="tabs">
       <button data-tab="fichas" class="on">Fichas</button>
       <button data-tab="citas">Citas</button>
@@ -306,7 +306,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 
 <script>
 "use strict";
-var VERSION="2026.08.14-11";
+var VERSION="2026.08.15-12";
 var KEY="mapaAmigos.v3";
 var MOTS=[
   ["salud","Salud y vida"],["sustento","Alimento y descanso"],["dinero","Dinero y lo que compra"],
@@ -792,6 +792,7 @@ function openNota(id,ev){
     p.notas.unshift({d:f,t:t});
     if(document.getElementById("nt_uc").value==="si") p.ultimoContacto=f;
     save(); closeModal(); renderAll(); toast("Conversación anotada");
+    try{ iaDesdeNota(p,t); }catch(e){}
   };
 }
 
@@ -1357,9 +1358,11 @@ function lineas(s,ancho,max){
   if(out.length===max && cur && out[max-1]!==cur) out[max-1]=out[max-1].replace(/.{1}$/,"\u2026");
   return out;
 }
-function txtSVG(s,x,y,ancho,max,cls,lh){
+function txtSVG(s,x,y,ancho,max,cls,lh,maxpx,fs){
   return lineas(s,ancho,max).map(function(l,i){
-    return '<text x="'+x+'" y="'+(y+i*(lh||17))+'" class="'+cls+'">'+esc(l)+'</text>';
+    var extra="";
+    if(maxpx){ var est=l.length*(fs||16)*0.56; if(est>maxpx) extra=' textLength="'+maxpx+'" lengthAdjust="spacingAndGlyphs"'; }
+    return '<text x="'+x+'" y="'+(y+i*(lh||17))+'"'+extra+' class="'+cls+'">'+esc(l)+'</text>';
   }).join("");
 }
 function hashStr(s){ s=String(s||"x"); var h=5381; for(var i=0;i<s.length;i++){ h=((h<<5)+h+s.charCodeAt(i))>>>0; } return h; }
@@ -1454,18 +1457,18 @@ function escenaSVG(p){
    // cuadro grande: en qué quiere tener éxito
    +'<g><rect x="452" y="60" width="416" height="252" fill="#efe9dd" stroke="#c9a961" stroke-width="9"/>'
    +'<text x="480" y="104" class="t s">EN QUÉ QUIERE TENER ÉXITO</text>'
-   +txtSVG(exito,480,136,30,7,"t p",24)+'</g>'
+   +txtSVG(exito,480,136,30,7,"t p",24,372,17)+'</g>'
    // cuadro medio: qué le preocupa
    +'<g><rect x="452" y="336" width="416" height="188" fill="#efe9dd" stroke="#8a7f6f" stroke-width="6"/>'
    +'<text x="480" y="374" class="t s">LO QUE LE QUITA EL SUEÑO</text>'
-   +txtSVG(preo,480,404,31,5,"t p",23)+'</g>'
+   +txtSVG(preo,480,404,31,5,"t p",23,372,17)+'</g>'
    // gato (estilo manga, distinto en cada ficha)
    +gatoSVG(p,col)
    // bocadillo: por qué querría ser admirado
    +'<g><rect x="34" y="212" width="356" height="164" rx="20" fill="#fdfbf6" opacity=".97"/>'
    +'<path d="M170 374 L188 410 L208 374 Z" fill="#fdfbf6" opacity=".97"/>'
    +'<text x="58" y="248" class="t s">QUERRÍA QUE LE ADMIRARAN POR</text>'
-   +txtSVG(adm,58,278,28,4,"t q",23)+'</g>'
+   +txtSVG(adm,58,278,28,4,"t q",23,300,16)+'</g>'
    // placa con el nombre
    +'<g><rect x="250" y="690" width="400" height="86" fill="#8f9294" stroke="#6f7274" stroke-width="4"/>'
    +'<rect x="258" y="698" width="384" height="70" fill="'+col+'"/>'
@@ -1476,19 +1479,19 @@ function escenaSVG(p){
    +'<rect x="0" y="0" width="186" height="132" rx="14" fill="#efe9dd"/>'
    +'<path d="M186 34 q42 30 0 62" stroke="#efe9dd" stroke-width="16" fill="none"/>'
    +'<text x="16" y="34" class="t s">LE FASCINA</text>'
-   +txtSVG(fasc,16,60,17,3,"t p",22)+'</g>'
+   +txtSVG(fasc,16,60,15,3,"t p",22,158,17)+'</g>'
    // libro con el cebo
    +'<g transform="translate(640,650)">'
    +'<rect x="-30" y="0" width="245" height="140" rx="8" fill="#16202b"/>'
    +'<rect x="-20" y="10" width="225" height="120" rx="6" fill="none" stroke="#ecc873" stroke-width="2"/>'
    +'<text x="-4" y="42" class="t s" fill="#ecc873">SU CEBO</text>'
-   +(cebo? txtSVG(cebo,-4,70,22,3,"t p",22).replace(/class="t p"/g,'class="t p" fill="#ffd86b" font-weight="700"')
-        : '<text x="26" y="62" class="t p" fill="#9fb0c2">sin definir</text>')
+   +(cebo? txtSVG(cebo,-4,70,20,3,"t p",22,200,17).replace(/class="t p"/g,'class="t p" fill="#ffffff" font-weight="700"')
+        : '<text x="26" y="62" class="t p" fill="#c2ccd8">sin definir</text>')
    +'</g>'
    // nota del gesto
    +(gesto? '<g transform="translate(250,600)"><rect width="300" height="70" fill="#f3e08a" transform="rotate(-2)"/>'
        +'<text x="16" y="26" class="t s" transform="rotate(-2)">EL GESTO PENDIENTE</text>'
-       +txtSVG(gesto,16,46,38,2,"t p",16).replace(/<text /g,'<text transform="rotate(-2)" ')+'</g>' : '')
+       +txtSVG(gesto,16,46,26,2,"t p",16,260,17).replace(/<text /g,'<text transform="rotate(-2)" ')+'</g>' : '')
    +'</svg>';
 }
 function verEscena(id){
@@ -1664,7 +1667,7 @@ function openEdit(id){
   if(!p) return;
   var others=state.people.filter(function(x){return x.id!==p.id;})
     .sort(function(a,b){return (a.nombre||"").localeCompare(b.nombre||"");});
-  var h='<div style="display:flex;gap:6px;margin:0 0 10px"><button class="btn sm" id="toFichas">← Todas las fichas</button><button class="btn sm" id="toMapa">Ver el mapa</button></div>'
+  var h='<div style="display:flex;gap:6px;align-items:center;margin:0 0 10px"><button class="btn sm" id="toFichas">← Todas las fichas</button><button class="btn sm" id="toMapa">Ver el mapa</button><span id="fichaGuardado" style="font-size:12px;color:var(--muted);margin-left:auto"></span></div>'
     +'<h2>'+(isNew?"Nueva persona":esc(p.nombre||"Ficha"))+'</h2>'
     +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 14px">Rellena solo lo que sepas. Vuelve cuando descubras algo nuevo.</p>';
   h+='<fieldset style="border-color:var(--accent)"><legend style="color:var(--accent)">LO ESENCIAL — con esto ya sirve</legend>'
@@ -1728,7 +1731,9 @@ function openEdit(id){
     +'</fieldset>';
   h+='<fieldset><legend>Notas con fecha</legend><div class="notes" id="notes">'+notesHTML(p)+'</div>'
     +'<div style="display:flex;gap:6px;margin-top:8px"><input type="text" id="newNote" placeholder="Ej.: su hija empieza el instituto en septiembre">'
-    +'<button class="btn" type="button" id="addNote">Añadir</button></div></fieldset>';
+    +'<button class="btn" type="button" id="addNote">Añadir</button></div>'
+    +(iaActiva()?'<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);margin-top:8px"><input type="checkbox" id="f_iaOff" style="width:auto"'+(p.iaOff?" checked":"")+'> No enviar esta ficha a la IA (mantenerla más privada)</label>':'')
+    +'</fieldset>';
   h+='<fieldset><legend>Su gente</legend>'
     +'<p style="color:var(--muted);font-size:12px;margin:0 0 10px">Nadie se abre tanto hablando de sí mismo como hablando de los suyos. Y casi nadie le pregunta por ellos.</p>'
     +fld("A quién quiere más (nombres y qué son suyos)","quienesImportan",p.quienesImportan,"ta")
@@ -1739,14 +1744,30 @@ function openEdit(id){
     +(isNew?"":'<button class="btn danger" id="del">Eliminar</button>')
     +(isNew?"":'<button class="btn" onclick="openPlan(\''+p.id+'\')">Plan</button>')
     +(isNew?"":'<button class="btn" onclick="openGuion(\''+p.id+'\')">Guión</button>')
-    +'<button class="btn" id="cancel">Cancelar</button><button class="btn primary" id="ok">Guardar</button></div>';
+    +'<button class="btn" id="cancel">Cerrar</button><button class="btn primary" id="ok">Guardar y cerrar</button></div>';
   showModal(h);
+  var ind=function(txt,ok){ var e=document.getElementById("fichaGuardado"); if(e){ e.textContent=txt; e.style.color=ok?"var(--ok)":"var(--muted)"; } };
+  var debG;
+  var guardarAhora=function(){
+    leerCampos(p);
+    if(!p.nombre){ ind("Escribe un nombre y se guardará solo"); return; }
+    if(isNew){ if(state.people.indexOf(p)<0) state.people.push(p); isNew=false; }
+    sincronizarConexiones(p);
+    save(); ind("Guardado ✓",true); renderAll();
+  };
+  var programarGuardado=function(){ ind("Guardando…"); clearTimeout(debG); debG=setTimeout(guardarAhora,700); };
+  document.getElementById("modal").querySelectorAll("input,textarea,select").forEach(function(el){
+    if(el.id==="newNote") return;
+    el.addEventListener("input",programarGuardado);
+    el.addEventListener("change",programarGuardado);
+  });
   document.getElementById("modal").querySelectorAll(".lvl button").forEach(function(b){
     b.onclick=function(){
       var k=b.parentNode.getAttribute("data-k");
       p.mot[k].n=parseInt(b.getAttribute("data-n"),10);
       b.parentNode.querySelectorAll("button").forEach(function(x){x.classList.remove("on");});
       b.classList.add("on");
+      programarGuardado();
     };
   });
   document.getElementById("addNote").onclick=function(){
@@ -1754,6 +1775,8 @@ function openEdit(id){
     p.notas.unshift({d:todayStr(),t:t});
     document.getElementById("newNote").value="";
     document.getElementById("notes").innerHTML=notesHTML(p);
+    guardarAhora();
+    try{ iaDesdeNota(p,t); }catch(e){}
   };
   var pr=document.getElementById("proponer"); if(pr) pr.onclick=abrirProponer;
   document.getElementById("cancel").onclick=closeModal;
@@ -1804,12 +1827,12 @@ function fld(label,key,val,type){
   if(type==="ta") return '<div class="fld"><label>'+label+'</label><textarea id="f_'+key+'">'+esc(val)+'</textarea></div>';
   return '<div class="fld"><label>'+label+'</label><input type="'+(type==="date"?"date":"text")+'" id="f_'+key+'" value="'+esc(val)+'"></div>';
 }
-function commit(p,isNew){
+function leerCampos(p){
   ["nombre","apodo","ciudad","grupo","sector","comoConocimos","pareja","hijos","familia","empleo","empresa",
    "exito","admirado","importante","preocupa","fascina","ayuda","logros","quienesImportan","queQuierenLosSuyos","gustosDeLosSuyos","gesto",
    "aficiones","deportes","musica","comida","temas","evitar","estilo","cumple","aniversario","ultimoContacto"]
    .forEach(function(k){ var e=document.getElementById("f_"+k); if(e) p[k]=e.value.trim(); });
-  p.tipo=document.getElementById("f_tipo").value;
+  var tp=document.getElementById("f_tipo"); if(tp) p.tipo=tp.value;
   var pc=document.getElementById("f_proximaCita");
   if(pc){
     var v=pc.value, act=nextMeeting(p);
@@ -1818,18 +1841,25 @@ function commit(p,isNew){
     else if(!v && act) p.encuentros=p.encuentros.filter(function(e){ return e!==act; });
   }
   var gz=document.getElementById("f_genero"); if(gz) p.genero=gz.value;
-  p.frecuencia=parseInt(document.getElementById("f_frecuencia").value,10)||90;
+  var io=document.getElementById("f_iaOff"); if(io) p.iaOff=io.checked;
+  var fr=document.getElementById("f_frecuencia"); if(fr) p.frecuencia=parseInt(fr.value,10)||90;
   MOTS.forEach(function(m){ var e=document.getElementById("m_"+m[0]); if(e) p.mot[m[0]].t=e.value.trim(); });
-  p.conexiones=Array.prototype.slice.call(document.querySelectorAll(".cx:checked")).map(function(c){return c.value;});
-  if(!p.nombre){ alert("Pon al menos un nombre."); return; }
-  if(isNew) state.people.push(p);
+  if(document.querySelector(".cx")) p.conexiones=Array.prototype.slice.call(document.querySelectorAll(".cx:checked")).map(function(c){return c.value;});
+}
+function sincronizarConexiones(p){
   state.people.forEach(function(x){
     if(x.id===p.id) return;
     x.conexiones=x.conexiones||[];
-    var has=x.conexiones.indexOf(p.id)>=0,should=p.conexiones.indexOf(x.id)>=0;
+    var has=x.conexiones.indexOf(p.id)>=0,should=(p.conexiones||[]).indexOf(x.id)>=0;
     if(should&&!has) x.conexiones.push(p.id);
     if(!should&&has) x.conexiones=x.conexiones.filter(function(c){return c!==p.id;});
   });
+}
+function commit(p,isNew){
+  leerCampos(p);
+  if(!p.nombre){ alert("Pon al menos un nombre."); return; }
+  if(isNew && state.people.indexOf(p)<0) state.people.push(p);
+  sincronizarConexiones(p);
   save(); closeModal(); renderAll();
 }
 function showModal(h){
@@ -2063,9 +2093,37 @@ function gdSyncSubir(){
         var marca=""; try{ marca=JSON.parse(payload()).saved; }catch(e){}
         setSyncMeta({driveGuardado:savedLocal()});
         GD.error=false;
+        try{ gdBackup(tok); }catch(e){}
         setSync("guardado en Drive "+new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})); revisarAvisos(); return true;
       });
   }).catch(function(){ GD.error=true; setSync("Drive: pulsa Reconectar"); revisarAvisos(); return false; });
+}
+function gdBackup(tok){
+  try{ if(syncMeta().driveBackupDia===todayStr()) return Promise.resolve(); }catch(e){}
+  var txt=payload(), pass=getPass();
+  var prep = pass ? cifrar(txt,pass) : Promise.resolve(txt);
+  return prep.then(function(cont){
+    var meta={name:"mapa-amigos-backup-"+todayStr()+".json"};
+    var boundary="bk"+Date.now();
+    var body="--"+boundary+"\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n"+JSON.stringify(meta)
+      +"\r\n--"+boundary+"\r\nContent-Type: application/octet-stream\r\n\r\n"+cont+"\r\n--"+boundary+"--";
+    return fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id",{method:"POST",
+      headers:{Authorization:"Bearer "+tok,"Content-Type":"multipart/related; boundary="+boundary},body:body})
+      .then(function(r){ if(!r.ok) throw new Error("bk "+r.status); return r.json(); })
+      .then(function(){ setSyncMeta({driveBackupDia:todayStr()}); return gdPodarBackups(tok); });
+  }).catch(function(){});
+}
+function gdPodarBackups(tok){
+  var q=encodeURIComponent("name contains 'mapa-amigos-backup-' and trashed=false");
+  return fetch("https://www.googleapis.com/drive/v3/files?q="+q+"&orderBy=createdTime desc&fields=files(id,name)",{headers:{Authorization:"Bearer "+tok}})
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      var sobra=(j.files||[]).slice(10); // conservar las 10 más recientes
+      return Promise.all(sobra.map(function(f){
+        return fetch("https://www.googleapis.com/drive/v3/files/"+f.id,{method:"PATCH",
+          headers:{Authorization:"Bearer "+tok,"Content-Type":"application/json"},body:JSON.stringify({trashed:true})});
+      }));
+    }).catch(function(){});
 }
 function gdProgramar(){
   if(!gdActivo()) return;
@@ -2473,6 +2531,55 @@ function enviarArchivo(){
   }catch(e){}
   exportJSON();
 }
+/* ---------- IA: auto-relleno de la ficha desde notas y dictados ---------- */
+var IA_CAMPOS=[["preocupa","qué le preocupa o le quita el sueño"],["fascina","qué le fascina o le apasiona"],["exito","en qué quiere tener éxito"],["admirado","por qué querría sentirse admirado y por quién"],["importante","qué le hace sentir importante"],["ayuda","cómo podría ayudarle a conseguir lo suyo"],["logros","logros concretos suyos que reconocerle"],["quienesImportan","a quién quiere de verdad (su gente)"],["queQuierenLosSuyos","qué persiguen los suyos"],["gustosDeLosSuyos","aficiones y gustos de los suyos"],["pareja","su pareja"],["hijos","sus hijos"],["aficiones","sus aficiones e intereses"],["cebo","su cebo: lo que de verdad le mueve"],["gesto","un gesto que hacerle que cueste tiempo"]];
+function iaCfg(){ try{ return JSON.parse(localStorage.getItem("mapaAmigos.ia")||"{}"); }catch(e){ return {}; } }
+function iaSetCfg(o){ try{ var c=iaCfg(); for(var k in o) c[k]=o[k]; localStorage.setItem("mapaAmigos.ia",JSON.stringify(c)); }catch(e){} }
+function iaActiva(){ var c=iaCfg(); return !!(c.on && c.url); }
+function iaDesdeNota(p,nota){
+  if(!iaActiva() || !nota || p.iaOff) return;
+  var cfg=iaCfg();
+  var actuales={}; IA_CAMPOS.forEach(function(c){ actuales[c[0]]=p[c[0]]||""; });
+  setSync("IA leyendo la nota…");
+  fetch(cfg.url,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({nota:nota, campos:actuales, definiciones:IA_CAMPOS})})
+    .then(function(r){ if(!r.ok) throw new Error("IA "+r.status); return r.json(); })
+    .then(function(j){
+      var ups=(j&&j.updates)||{}, cambios=[];
+      Object.keys(ups).forEach(function(k){
+        var val=(ups[k]||"").toString().trim(); if(!val) return;
+        if(!IA_CAMPOS.some(function(c){return c[0]===k;})) return;
+        var antes=p[k]||"";
+        if(antes && antes.toLowerCase().indexOf(val.toLowerCase())>=0) return;
+        p[k]=antes ? (antes+" · "+val) : val;
+        cambios.push({campo:k, antes:antes, valor:val});
+      });
+      setSync("");
+      if(cambios.length){
+        p.iaHist=(p.iaHist||[]).concat([{d:new Date().toISOString(), nota:nota.slice(0,140), cambios:cambios}]).slice(-30);
+        save(); renderAll();
+        iaBarraDeshacer(p, cambios);
+      }
+    }).catch(function(){ setSync(""); toast("La IA no pudo procesar la nota (revisa el puente en Sincronizar)."); });
+}
+function iaDeshacer(p, cambios){
+  cambios.forEach(function(c){ p[c.campo]=c.antes; });
+  if(p.iaHist && p.iaHist.length) p.iaHist.pop();
+  save(); renderAll(); toast("Cambios de la IA deshechos");
+}
+function iaBarraDeshacer(p, cambios){
+  var etiqueta=function(k){ for(var i=0;i<IA_CAMPOS.length;i++) if(IA_CAMPOS[i][0]===k) return IA_CAMPOS[i][1]; return k; };
+  var lista=cambios.map(function(c){ return etiqueta(c.campo); }).slice(0,4).join(", ");
+  var el=document.getElementById("iabar");
+  if(!el){ el=document.createElement("div"); el.id="iabar"; document.body.appendChild(el); }
+  el.style.cssText="position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--navy,#1e2a3a);color:#fff;padding:12px 14px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.3);z-index:9999;font-size:13px;max-width:90%;display:flex;gap:12px;align-items:center";
+  el.innerHTML='<span>IA actualizó '+esc((p.nombre||"la ficha"))+': '+esc(lista)+'</span>';
+  var btn=document.createElement("button"); btn.textContent="Deshacer"; btn.className="btn sm";
+  btn.style.cssText="background:#fff;color:var(--navy,#1e2a3a);border:0";
+  btn.onclick=function(){ iaDeshacer(p,cambios); el.remove(); };
+  el.appendChild(btn);
+  clearTimeout(iaBarraDeshacer.t); iaBarraDeshacer.t=setTimeout(function(){ if(el) el.remove(); },9000);
+}
 function openSync(){
   var puede=fsSoportado(), conectada=!!FS.handle;
   var h='<h2>Sincronizar</h2>'
@@ -2530,6 +2637,21 @@ function openSync(){
     +'<button class="btn primary" id="sy_descargar">Descargar copia</button>'
     +'<button class="btn primary" id="sy_traerarch">Traer un archivo</button>'
     +'<button class="btn" id="sy_pegar">Copiar o pegar texto</button></div></fieldset>';
+  var ia=iaCfg();
+  h+='<fieldset style="border-color:'+(iaActiva()?"#20b6a6":"var(--line)")+'"><legend style="color:'+(iaActiva()?"#20b6a6":"var(--muted)")+'">Cerebro (IA) — rellenar la ficha desde tus notas: '+(iaActiva()?"activado":"desactivado")+'</legend>'
+    +'<p style="font-size:13px;margin:0 0 8px">Cuando anotas una conversación o dictas, la IA la entiende y actualiza sola los campos de la ficha (qué le preocupa, qué le fascina, su gente…). <b>La nota se envía a tu servidor-puente.</b> Cualquier cambio se puede deshacer, y puedes excluir fichas sensibles.</p>'
+    +'<div class="fld"><label>Dirección de tu servidor-puente (URL)</label><input type="text" id="ia_url" value="'+esc(ia.url||"")+'" placeholder="https://…workers.dev"></div>'
+    +'<label style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" id="ia_on" style="width:auto"'+(ia.on?" checked":"")+'> Activar el auto-relleno con IA</label>'
+    +'<label style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);margin-top:6px"><input type="checkbox" id="ia_ok" style="width:auto"'+(ia.consent?" checked":"")+'> Entiendo que la nota sale del dispositivo hacia mi servidor de IA</label>'
+    +'<div style="display:flex;gap:6px;margin-top:8px"><button class="btn primary" id="ia_guardar">Guardar</button><button class="btn" id="ia_probar">Probar</button></div>'
+    +'<p style="color:var(--muted);font-size:11.5px;margin:8px 0 0">¿Aún no tienes servidor-puente? Tienes el archivo <code>ia-servidor-puente.js</code> y la guía <code>IA - como activarla.md</code> en tu carpeta.</p></fieldset>';
+  h+='<fieldset><legend>Diagnóstico</legend><div style="font-size:13px;line-height:1.7">'
+    +'Fichas en este dispositivo: <b>'+state.people.length+'</b><br>'
+    +'Última copia guardada aquí: <b>'+(savedLocal()?fmtDate(savedLocal()):"—")+'</b><br>'
+    +'Google Drive: <b>'+(gdActivo()?"conectado":"no conectado")+'</b>'+(gdHint()?' <span style="color:var(--muted)">('+esc(gdHint())+')</span>':'')+'<br>'
+    +'Cifrado: <b>'+(getPass()?"activado":"no")+'</b> &nbsp;·&nbsp; IA: <b>'+(iaActiva()?"activada":"no")+'</b><br>'
+    +'Versión de la app: <b>'+VERSION+'</b>'
+    +'</div></fieldset>';
   h+='<div class="modal-actions"><button class="btn" id="cancel">Cerrar</button></div>';
   showModal(h);
   document.getElementById("cancel").onclick=closeModal;
@@ -2537,6 +2659,21 @@ function openSync(){
   if((b=document.getElementById("gd_conectar"))) b.onclick=gdConectar;
   if((b=document.getElementById("gd_desconectar"))) b.onclick=function(){ gdSet(false); gdSetHint(""); GD.token=null; GD.fileId=null; toast("Drive desconectado en este dispositivo"); openSync(); };
   if((b=document.getElementById("gd_ahora"))) b.onclick=function(){ gdSyncSubir().then(function(ok){ if(ok){ closeModal(); toast("Guardado en Drive"); } }); };
+  if((b=document.getElementById("ia_guardar"))) b.onclick=function(){
+    var url=document.getElementById("ia_url").value.trim();
+    var on=document.getElementById("ia_on").checked, ok=document.getElementById("ia_ok").checked;
+    if(on && !url){ alert("Pon la dirección de tu servidor-puente."); return; }
+    if(on && !ok){ alert("Marca que entiendes que la nota sale del dispositivo hacia tu servidor de IA."); return; }
+    iaSetCfg({url:url,on:on,consent:ok}); toast("Ajustes de IA guardados"); openSync();
+  };
+  if((b=document.getElementById("ia_probar"))) b.onclick=function(){
+    var url=document.getElementById("ia_url").value.trim(); if(!url){ alert("Pon la URL del puente primero."); return; }
+    toast("Probando el puente…");
+    fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({nota:"Le preocupa que bajan las ventas en invierno y le encanta el pádel.",campos:{},definiciones:IA_CAMPOS})})
+      .then(function(r){ return r.json(); })
+      .then(function(j){ alert("Respondió el puente:\n\n"+JSON.stringify((j&&j.updates)||j,null,2)); })
+      .catch(function(e){ alert("No respondió el puente.\n\nDetalle: "+(e&&e.message||"")); });
+  };
   if((b=document.getElementById("sy_conectar"))) b.onclick=conectarCarpeta;
   if((b=document.getElementById("sy_guardar"))) b.onclick=function(){ escribirCarpeta().then(function(ok){ if(ok){ closeModal(); } }); };
   if((b=document.getElementById("sy_traer"))) b.onclick=function(){
