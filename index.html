@@ -239,7 +239,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 <div class="wrap">
   <header class="top">
     <div class="titlewrap"><div class="title"><h1>Mapa de amigos</h1><small id="count"></small></div>
-      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.19-16</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
+      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.20-17</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
     <div class="tabs">
       <button data-tab="fichas" class="on">Fichas</button>
       <button data-tab="citas">Citas</button>
@@ -274,13 +274,15 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
         <select id="modoMapa" style="width:auto;padding:5px 8px;font-size:13px">
           <option value="personas">Mapa de personas</option>
           <option value="industrias">Mapa profesional (por sector)</option>
+          <option value="afinidad">Afinidad por objetivos</option>
         </select>
         <button class="btn sm" id="reflow">Reordenar</button>
         <label class="chip"><input type="checkbox" id="byGroup" style="width:auto" checked> unir por círculo</label>
       </div>
       <div class="legend" id="legend"></div>
     </div>
-    <p style="color:var(--muted);font-size:12.5px">Arrastra los nodos, rueda para acercar, clic en una persona para abrir su ficha. El color indica la categoría.</p>
+    <div id="afinidadBox" style="display:none"></div>
+    <p id="mapaHint" style="color:var(--muted);font-size:12.5px">Arrastra los nodos, rueda para acercar, clic en una persona para abrir su ficha. El color indica la categoría.</p>
   </div>
   <div id="view-agenda" style="display:none"><div id="agenda"></div></div>
   <div id="view-negocio" style="display:none"><div id="negocio" class="inf-doc"></div></div>
@@ -306,7 +308,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 
 <script>
 "use strict";
-var VERSION="2026.08.19-16";
+var VERSION="2026.08.20-17";
 var KEY="mapaAmigos.v3";
 var MOTS=[
   ["salud","Salud y vida"],["sustento","Alimento y descanso"],["dinero","Dinero y lo que compra"],
@@ -571,7 +573,7 @@ function generarDiscurso(p){
   var gap=function(x){ return "[FALTA: "+x+"]"; };
   var suNombre=(p.nombre||"").split(" ")[0];
   var quien = p.empresa || p.empleo || "su equipo";
-  L.push("EN EL ESPÍRITU DE DALE CARNEGIE: interésate de verdad por "+(suNombre||"la otra persona")+", habla de lo que "+EL(p)+" quiere (no de lo que necesitas tú), no le critiques y hazle sentir importante con sinceridad.");
+  L.push("ANTES DE EMPEZAR: interésate de verdad por "+(suNombre||"la otra persona")+", habla de lo que "+EL(p)+" quiere (no de lo que necesitas tú), no le critiques y hazle sentir importante con sinceridad.");
   L.push("");
   if(neg){
     L.push("1. RECONOCIMIENTO (hecho concreto, sin adular)");
@@ -623,7 +625,7 @@ function generarDiscurso(p){
   L.push("");
   L.push("— El menú es compartido: los dos tenéis que salir habiendo disfrutado. Si solo ganas tú, no vuelve a haber comida.");
   L.push("");
-  L.push("PRINCIPIOS (Dale Carnegie), no los pierdas de vista:");
+  L.push("PRINCIPIOS que no debes perder de vista:");
   L.push("· No critiques, no condenes, no te quejes. Despierta en "+EL(p)+" el deseo de hacerlo.");
   L.push("· Habla siempre en términos de lo que le interesa a "+EL(p)+", no de lo tuyo.");
   L.push("· Hazle sentir importante — y hazlo con sinceridad.");
@@ -649,7 +651,7 @@ function openPlan(id){
     +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 12px">'+tipoLabel(p.tipo)
     +(p.empresa?' · '+esc(p.empresa):'')+'</p>'
     +'<div class="infobox">El mismo menú para los dos. Él no quiere ayudarte: quiere resolver lo suyo y que se le note el acierto. '
-    +'Tu trabajo es que conseguir lo suyo pase por ti. <b>Al estilo de Dale Carnegie:</b> no critiques, habla de lo que le interesa a '+EL(p)+' y hazle sentir importante con sinceridad.</div>';
+    +'Tu trabajo es que conseguir lo suyo pase por ti. <b>Recuerda:</b> no critiques, habla de lo que le interesa a '+EL(p)+' y hazle sentir importante con sinceridad.</div>';
 
   h+='<fieldset><legend>El intercambio</legend>'
     +'<div class="cols">'
@@ -745,6 +747,73 @@ function bindPasos(p,refresh){
 }
 function ta(label,id,val){ return '<div class="fld"><label>'+label+'</label><textarea id="'+id+'">'+esc(val)+'</textarea></div>'; }
 
+/* ---------- afinidad por objetivos ---------- */
+var STOP_AFIN={"para":1,"pero":1,"como":1,"esto":1,"esta":1,"este":1,"unos":1,"unas":1,"desde":1,"hacia":1,"sobre":1,"entre":1,"cuando":1,"donde":1,"porque":1,"tengo":1,"tener":1,"quiero":1,"busco":1,"buscar":1,"ahora":1,"mismo":1,"alguna":1,"todo":1,"toda":1,"mas":1,"muy":1,"con":1,"sin":1,"los":1,"las":1,"del":1,"que":1,"una":1,"uno":1,"por":1,"eso":1,"ellos":1,"nuevo":1,"nueva":1,"gente":1,"cosas":1,"poder":1,"hacer":1};
+function afinTokens(s){
+  return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").split(/[^a-z0-9]+/)
+    .filter(function(w){ return w.length>3 && !STOP_AFIN[w]; });
+}
+function afinidad(obj){
+  var toks=afinTokens(obj+" "+((state.me&&state.me.sectores)||"")), seen={}, u=[];
+  toks.forEach(function(t){ if(!seen[t]){ seen[t]=1; u.push(t); } });
+  var out=[];
+  (state.people||[]).forEach(function(p){
+    var hay=[p.empleo,p.empresa,p.sector,p.ayuda,p.meAporta,p.buscaDeMi,p.problema,p.exito,p.fascina,p.temas,p.aficiones,p.quienesImportan].join(" ");
+    var set={}; afinTokens(hay).forEach(function(t){ set[t]=1; });
+    var motivos=[], score=0;
+    u.forEach(function(t){ if(set[t]){ score++; motivos.push(t); } });
+    if(esNegocio(p)) score+=0.5;
+    if(score>0.9) out.push({ p:p, score:score, motivos:motivos });
+  });
+  out.sort(function(a,b){ return b.score-a.score; });
+  return out;
+}
+function afinidadResumenHTML(m){
+  var obj=(m.pido||"").trim();
+  if(!obj) return '<div style="font-size:12.5px;color:var(--muted)">Rellena «Qué busco» y guarda para ver a quién de tu red conviene acudir.</div>';
+  var r=afinidad(obj).slice(0,3);
+  if(!r.length) return '<div style="font-size:12.5px;color:var(--muted)">Aún no encuentro afinidades claras. Cuanto más completes las fichas (a qué se dedican, en qué pueden ayudar), mejores sugerencias.</div>';
+  return r.map(function(x){
+    return '<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin-bottom:6px">'
+      +'<div><b>'+esc(x.p.nombre)+'</b> '+(x.motivos.length?'<span style="color:var(--muted);font-size:12px">· '+esc(x.motivos.slice(0,4).join(", "))+'</span>':'')+'</div>'
+      +'<button class="btn sm" type="button" onclick="openEdit(\''+x.p.id+'\')">Ver</button></div>';
+  }).join("");
+}
+function renderAfinidad(){
+  var box=document.getElementById("afinidadBox"); if(!box) return;
+  var m=state.me||newMe(), obj=(m.pido||"").trim();
+  if(!obj){
+    box.innerHTML='<div class="empty">Escribe <b>lo que buscas</b> en «Mi perfil» y aquí te diré a quién de tu red conviene acudir para conseguirlo.'
+      +'<div style="margin-top:10px"><button class="btn primary" id="af_perfil">Abrir Mi perfil</button></div></div>';
+    var b=document.getElementById("af_perfil"); if(b) b.onclick=openMe; return;
+  }
+  var r=afinidad(obj);
+  var h='<div class="sec-title">Para conseguir: «'+esc(obj)+'», habla con:</div>';
+  if(!r.length){ box.innerHTML=h+'<div class="empty">Todavía no encuentro afinidades claras. Completa en las fichas a qué se dedican y en qué pueden ayudarte, y volveré a sugerir.</div>'; return; }
+  var max=r[0].score||1;
+  h+=r.slice(0,20).map(function(x){
+    var pct=Math.max(8,Math.round((x.score/max)*100));
+    return '<div class="row"><div class="av" style="background:'+colorOf(x.p)+'">'+esc(initials(x.p.nombre))+'</div>'
+      +'<div class="grow" onclick="openEdit(\''+x.p.id+'\')"><div style="font-weight:600">'+esc(x.p.nombre)+' <span style="color:var(--muted);font-size:12px">'+esc(tipoLabel(x.p.tipo))+'</span></div>'
+      +'<div class="meter" style="margin:4px 0"><i style="width:'+pct+'%"></i></div>'
+      +(x.motivos.length?'<div style="font-size:12px;color:var(--muted)">Coincide en: '+esc(x.motivos.slice(0,6).join(", "))+'</div>':'')+'</div>'
+      +'<div style="display:flex;flex-direction:column;gap:4px"><button class="btn sm" onclick="openPlan(\''+x.p.id+'\')">Plan</button><button class="btn sm" onclick="openGuion(\''+x.p.id+'\')">Guión</button></div></div>';
+  }).join("");
+  box.innerHTML=h;
+}
+function mapaRender(){
+  var gb=document.getElementById("graphBox"), ab=document.getElementById("afinidadBox"), hint=document.getElementById("mapaHint");
+  if(state.modoMapa==="afinidad"){
+    if(gb) gb.style.display="none";
+    if(hint) hint.style.display="none";
+    if(ab){ ab.style.display=""; renderAfinidad(); }
+  } else {
+    if(gb) gb.style.display="";
+    if(hint) hint.style.display="";
+    if(ab) ab.style.display="none";
+    buildGraph();
+  }
+}
 /* ---------- mi perfil ---------- */
 function openMe(){
   var m=state.me||newMe();
@@ -757,6 +826,9 @@ function openMe(){
     +ta("Experiencia relevante","me_experiencia",m.experiencia)
     +'<div class="fld"><label>Sectores o mercados</label><input type="text" id="me_sectores" value="'+esc(m.sectores)+'"></div>'
     +ta("Qué busco ahora mismo","me_pido",m.pido)
+    +'<fieldset style="border-color:#20b6a6"><legend style="color:#20b6a6">Afinidad por objetivos</legend>'
+    +'<p style="color:var(--muted);font-size:12px;margin:0 0 8px">Según lo que buscas, estas son las personas de tu red con más afinidad para ayudarte a conseguirlo. El mapa completo está en <b>Mapa → Afinidad por objetivos</b>. (Guarda para actualizar.)</p>'
+    +afinidadResumenHTML(m)+'</fieldset>'
     +'<div class="fld"><label>PIN de entrada (opcional, deja vac\u00edo para quitarlo)</label>'
     +'<input type="text" inputmode="numeric" id="me_pin" maxlength="8" value="'+esc(getPin())+'"></div>'
     +'<p style="color:var(--muted);font-size:11.5px;margin:-4px 0 8px">No cifra nada: solo evita que alguien que coja tu m\u00f3vil desbloqueado lo abra de un vistazo.</p>'
@@ -3069,7 +3141,7 @@ function setTab(t){
   ["fichas","citas","mapa","agenda","negocio","informe"].forEach(function(k){
     document.getElementById("view-"+k).style.display=(k===t?"":"none");
   });
-  if(t==="mapa") buildGraph();
+  if(t==="mapa") mapaRender();
   if(t==="negocio") renderNegocio();
   if(t==="informe") renderInforme();
   try{ tel("screen",{tab:t}); }catch(e){}
@@ -3088,10 +3160,10 @@ function consentOK(){ try{ return localStorage.getItem("mapaAmigos.consent")===T
 function pedirConsentimiento(){
   if(consentOK()) return;
   var o=document.createElement("div"); o.id="consent";
-  o.style.cssText="position:fixed;inset:0;background:rgba(20,28,40,.78);z-index:100000;display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto";
-  o.innerHTML='<div style="background:#fff;max-width:560px;width:100%;border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35)">'
-    +'<h2 style="margin:0 0 10px">Antes de empezar</h2>'
-    +'<div style="font-size:13.5px;line-height:1.55;max-height:46vh;overflow:auto">'+TERMINOS_HTML+'</div>'
+  o.style.cssText="position:fixed;inset:0;background:rgba(20,28,40,.78);z-index:100000;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;align-items:flex-start;justify-content:center";
+  o.innerHTML='<div style="background:#fff;max-width:560px;width:100%;border-radius:16px;padding:20px;margin:16px auto;box-shadow:0 20px 60px rgba(0,0,0,.35)">'
+    +'<h2 style="margin:0 0 10px;font-size:20px">Antes de empezar</h2>'
+    +'<div style="font-size:13.5px;line-height:1.55">'+TERMINOS_HTML+'</div>'
     +'<label style="display:flex;gap:8px;align-items:flex-start;margin:14px 0;font-size:13px"><input type="checkbox" id="cst_ok" style="width:auto;margin-top:3px"> He leído y acepto cómo se tratan los datos, y me comprometo a un uso responsable de la información que anote sobre otras personas.</label>'
     +'<div style="display:flex;justify-content:flex-end"><button class="btn primary" id="cst_go" disabled>Aceptar y continuar</button></div></div>';
   document.body.appendChild(o);
@@ -3157,7 +3229,7 @@ document.getElementById("file").onchange=function(e){ if(e.target.files[0]) impo
 document.getElementById("pdfBtn").onclick=function(){ renderInforme(); setTimeout(function(){ window.print(); },150); };
 document.getElementById("reflow").onclick=function(){ G.tx=0;G.ty=0;G.s=1;G.nodes=[]; buildGraph(); };
 document.getElementById("byGroup").onchange=buildGraph;
-document.getElementById("modoMapa").onchange=function(e){ state.modoMapa=e.target.value; G.nodes=[]; buildGraph(); };
+document.getElementById("modoMapa").onchange=function(e){ state.modoMapa=e.target.value; G.nodes=[]; mapaRender(); };
 document.getElementById("overlay").onclick=function(e){ if(e.target.id==="overlay") closeModal(); };
 document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeModal(); });
 window.addEventListener("resize",function(){ if(state.tab==="mapa"){ G.alpha=0.3; tick(); } });
