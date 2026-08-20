@@ -239,7 +239,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 <div class="wrap">
   <header class="top">
     <div class="titlewrap"><div class="title"><h1>Mapa de amigos</h1><small id="count"></small></div>
-      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.15-12</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
+      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.19-16</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
     <div class="tabs">
       <button data-tab="fichas" class="on">Fichas</button>
       <button data-tab="citas">Citas</button>
@@ -306,7 +306,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 
 <script>
 "use strict";
-var VERSION="2026.08.15-12";
+var VERSION="2026.08.19-16";
 var KEY="mapaAmigos.v3";
 var MOTS=[
   ["salud","Salud y vida"],["sustento","Alimento y descanso"],["dinero","Dinero y lo que compra"],
@@ -571,6 +571,8 @@ function generarDiscurso(p){
   var gap=function(x){ return "[FALTA: "+x+"]"; };
   var suNombre=(p.nombre||"").split(" ")[0];
   var quien = p.empresa || p.empleo || "su equipo";
+  L.push("EN EL ESPÍRITU DE DALE CARNEGIE: interésate de verdad por "+(suNombre||"la otra persona")+", habla de lo que "+EL(p)+" quiere (no de lo que necesitas tú), no le critiques y hazle sentir importante con sinceridad.");
+  L.push("");
   if(neg){
     L.push("1. RECONOCIMIENTO (hecho concreto, sin adular)");
     L.push(p.hitos ? "   "+p.hitos+". Me sentiría orgulloso de formar parte de una organización con ese historial."
@@ -620,6 +622,12 @@ function generarDiscurso(p){
   }
   L.push("");
   L.push("— El menú es compartido: los dos tenéis que salir habiendo disfrutado. Si solo ganas tú, no vuelve a haber comida.");
+  L.push("");
+  L.push("PRINCIPIOS (Dale Carnegie), no los pierdas de vista:");
+  L.push("· No critiques, no condenes, no te quejes. Despierta en "+EL(p)+" el deseo de hacerlo.");
+  L.push("· Habla siempre en términos de lo que le interesa a "+EL(p)+", no de lo tuyo.");
+  L.push("· Hazle sentir importante — y hazlo con sinceridad.");
+  L.push("· Usa su nombre, escucha el doble de lo que hablas y deja que la idea sea suya.");
   return L.join("\n");
 }
 function listaCorta(s){ return String(s||"").split(/[\n,;·]/).map(function(x){return x.trim();}).filter(Boolean).slice(0,6); }
@@ -641,7 +649,7 @@ function openPlan(id){
     +'<p style="color:var(--muted);font-size:12.5px;margin:2px 0 12px">'+tipoLabel(p.tipo)
     +(p.empresa?' · '+esc(p.empresa):'')+'</p>'
     +'<div class="infobox">El mismo menú para los dos. Él no quiere ayudarte: quiere resolver lo suyo y que se le note el acierto. '
-    +'Tu trabajo es que conseguir lo suyo pase por ti.</div>';
+    +'Tu trabajo es que conseguir lo suyo pase por ti. <b>Al estilo de Dale Carnegie:</b> no critiques, habla de lo que le interesa a '+EL(p)+' y hazle sentir importante con sinceridad.</div>';
 
   h+='<fieldset><legend>El intercambio</legend>'
     +'<div class="cols">'
@@ -792,7 +800,8 @@ function openNota(id,ev){
     p.notas.unshift({d:f,t:t});
     if(document.getElementById("nt_uc").value==="si") p.ultimoContacto=f;
     save(); closeModal(); renderAll(); toast("Conversación anotada");
-    try{ iaDesdeNota(p,t); }catch(e){}
+    try{ tel("action",{a:"nota"}); }catch(e){}
+    try{ procesarNota(p,t); }catch(e){}
   };
 }
 
@@ -1680,7 +1689,7 @@ function openEdit(id){
     +(isNew?'':'<button class="btn" type="button" onclick="verEscena(\''+p.id+'\')">Generar imagen</button>')
     +'<p style="color:var(--muted);font-size:11.5px;margin:8px 0 0">Lo que proponga son conjeturas para confirmar preguntando, nunca datos. Si te las crees sin comprobarlas, te construyes una persona que no existe.</p>'
     +'</fieldset>';
-  h+='<fieldset><legend>Básico</legend><div class="cols">'
+  h+='<fieldset style="border-color:#4a6fa5"><legend style="color:#4a6fa5">Básico</legend><div class="cols">'
     +'<div class="fld"><label>Categoría</label><select id="f_tipo">'
     +TIPOS.map(function(t){return '<option value="'+t[0]+'"'+(p.tipo===t[0]?" selected":"")+'>'+t[1]+'</option>';}).join("")
     +'</select></div>'
@@ -1691,23 +1700,23 @@ function openEdit(id){
     +fld("Círculo (equipo, barrio, familia…)","grupo",p.grupo)
     +fld("Ciudad","ciudad",p.ciudad)+fld("Sector / ámbito","sector",p.sector)+'</div>'
     +fld("Cómo os conocisteis","comoConocimos",p.comoConocimos,"ta")+'</fieldset>';
-  h+='<fieldset><legend>Familia y trabajo</legend><div class="cols">'
+  h+='<fieldset style="border-color:#8c5aa8"><legend style="color:#8c5aa8">Familia y trabajo</legend><div class="cols">'
     +fld("Pareja","pareja",p.pareja)+fld("Hijos (nombres y edades)","hijos",p.hijos)
     +fld("Empleo / puesto","empleo",p.empleo)+fld("Empresa","empresa",p.empresa)+'</div>'
     +fld("Otros datos de familia","familia",p.familia,"ta")+'</fieldset>';
-  h+='<fieldset><legend>Lo que persigue</legend>'
+  h+='<fieldset style="border-color:#20b6a6"><legend style="color:#20b6a6">Lo que persigue</legend>'
     +fld("Qué le preocupa","preocupa",p.preocupa,"ta")
     +fld("Qué le fascina","fascina",p.fascina,"ta")
     +fld("Cómo puedo ayudarle a conseguirlo","ayuda",p.ayuda,"ta")
     +fld("Logros suyos que puedes reconocer (concretos)","logros",p.logros,"ta")+'</fieldset>';
-  h+='<fieldset><legend>Gustos e intereses</legend>'
+  h+='<fieldset style="border-color:#d99b2b"><legend style="color:#d99b2b">Gustos e intereses</legend>'
     +fld("Aficiones (separadas por comas)","aficiones",p.aficiones)
     +'<div class="cols">'+fld("Deporte / equipo","deportes",p.deportes)+fld("Música","musica",p.musica)
     +fld("Comida y bebida","comida",p.comida)+fld("Temas que le encienden","temas",p.temas)+'</div>'
     +fld("Temas a evitar","evitar",p.evitar)
     +(esF(p)?fld("Cómo suele vestir / su estilo","estilo",p.estilo,"ta"):"")+'</fieldset>';
   var citaProx=nextMeeting(p);
-  h+='<fieldset><legend>Fechas</legend><div class="cols3">'
+  h+='<fieldset style="border-color:#2f9d78"><legend style="color:#2f9d78">Fechas</legend><div class="cols3">'
     +fld("Cumpleaños","cumple",p.cumple,"date")
     +fld("Último contacto","ultimoContacto",p.ultimoContacto,"date")
     +'<div class="fld"><label>Próxima cita</label><input type="date" id="f_proximaCita" value="'+esc(citaProx?citaProx.fecha:"")+'"></div>'
@@ -1715,7 +1724,7 @@ function openEdit(id){
     +'<p style="color:var(--muted);font-size:11.5px;margin:-2px 0 8px">La próxima cita alimenta el aviso de las mañanas: el día antes te preparo el guión y busco noticias.</p>'
     +'<div class="fld" style="max-width:260px"><label>Recordar cada (días)</label>'
     +'<input type="number" min="1" id="f_frecuencia" value="'+(p.frecuencia||90)+'"></div></fieldset>';
-  h+='<fieldset><legend>Qué le mueve</legend>'
+  h+='<fieldset style="border-color:#c0468a"><legend style="color:#c0468a">Qué le mueve</legend>'
     +'<p style="color:var(--muted);font-size:12px;margin:0 0 10px">Importancia de 0 a 3 y el detalle concreto: no es lo mismo «dinero» que «ahorra para la entrada de un piso».</p>'
     +MOTS.map(function(m){
       var v=p.mot[m[0]];
@@ -1723,18 +1732,18 @@ function openEdit(id){
         +[0,1,2,3].map(function(i){return '<button type="button" data-n="'+i+'" class="'+(v.n===i?"on":"")+'">'+i+'</button>';}).join("")
         +'</span><input type="text" id="m_'+m[0]+'" value="'+esc(v.t)+'" placeholder="detalle concreto"></div>';
     }).join("")+'</fieldset>';
-  h+='<fieldset><legend>Conexiones</legend>'
+  h+='<fieldset style="border-color:#0f8a8a"><legend style="color:#0f8a8a">Conexiones</legend>'
     +(others.length?'<div class="multi">'+others.map(function(o){
       return '<label><input type="checkbox" class="cx" value="'+o.id+'"'
         +((p.conexiones||[]).indexOf(o.id)>=0?" checked":"")+'>'+esc(o.nombre||"(sin nombre)")+'</label>';
     }).join("")+'</div>':'<p style="color:var(--muted);font-size:12.5px;margin:0">Añade más personas para poder conectarlas.</p>')
     +'</fieldset>';
-  h+='<fieldset><legend>Notas con fecha</legend><div class="notes" id="notes">'+notesHTML(p)+'</div>'
+  h+='<fieldset style="border-color:#6d7a8c"><legend style="color:#6d7a8c">Notas con fecha</legend><div class="notes" id="notes">'+notesHTML(p)+'</div>'
     +'<div style="display:flex;gap:6px;margin-top:8px"><input type="text" id="newNote" placeholder="Ej.: su hija empieza el instituto en septiembre">'
     +'<button class="btn" type="button" id="addNote">Añadir</button></div>'
     +(iaActiva()?'<label style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--muted);margin-top:8px"><input type="checkbox" id="f_iaOff" style="width:auto"'+(p.iaOff?" checked":"")+'> No enviar esta ficha a la IA (mantenerla más privada)</label>':'')
     +'</fieldset>';
-  h+='<fieldset><legend>Su gente</legend>'
+  h+='<fieldset style="border-color:#7a5bd0"><legend style="color:#7a5bd0">Su gente</legend>'
     +'<p style="color:var(--muted);font-size:12px;margin:0 0 10px">Nadie se abre tanto hablando de sí mismo como hablando de los suyos. Y casi nadie le pregunta por ellos.</p>'
     +fld("A quién quiere más (nombres y qué son suyos)","quienesImportan",p.quienesImportan,"ta")
     +fld("Qué quieren ellos (lo que persiguen los suyos)","queQuierenLosSuyos",p.queQuierenLosSuyos,"ta")
@@ -1776,7 +1785,7 @@ function openEdit(id){
     document.getElementById("newNote").value="";
     document.getElementById("notes").innerHTML=notesHTML(p);
     guardarAhora();
-    try{ iaDesdeNota(p,t); }catch(e){}
+    try{ procesarNota(p,t); }catch(e){}
   };
   var pr=document.getElementById("proponer"); if(pr) pr.onclick=abrirProponer;
   document.getElementById("cancel").onclick=closeModal;
@@ -2580,6 +2589,59 @@ function iaBarraDeshacer(p, cambios){
   el.appendChild(btn);
   clearTimeout(iaBarraDeshacer.t); iaBarraDeshacer.t=setTimeout(function(){ if(el) el.remove(); },9000);
 }
+/* ---------- Auto-relleno asistido SIN IA (por palabras clave, en el dispositivo) ---------- */
+function procesarNota(p,nota){
+  if(iaActiva()){ try{ iaDesdeNota(p,nota); }catch(e){} return; }
+  try{ sugerirAsistido(p,nota); }catch(e){}
+}
+var REGLAS_CAMPOS=[
+  {campo:"preocupa",et:"Qué le preocupa",re:/(le preocupa|le agobia|est[aá] agobiad|le estres|teme |miedo a|le cuesta|problema con|no puede con|le angustia)/i},
+  {campo:"fascina",et:"Qué le fascina",re:/(le encanta|le apasiona|le flipa|es fan de|disfruta con|le entusiasma|le gusta mucho|le chifla)/i},
+  {campo:"aficiones",et:"Aficiones",re:/(juega a|practica|colecciona|toca (la|el)|en su tiempo libre|su hobby|aficionad|le va (el|la))/i},
+  {campo:"exito",et:"En qué quiere tener éxito",re:/(quiere conseguir|su objetivo|sue[ñn]a con|aspira a|quiere llegar|quiere montar|quiere abrir|quiere ampliar)/i},
+  {campo:"logros",et:"Logros",re:/(consigui[oó]|logr[oó]|gan[oó]|premi|cerr[oó] (un|una)|bati[oó]|ascendi|le ascendieron)/i},
+  {campo:"hijos",et:"Hijos",re:/(su hij[oa]|sus hij|sus peques|sus ni[ñn]os)/i},
+  {campo:"pareja",et:"Pareja",re:/(su marido|su mujer|su pareja|su novi[oa])/i},
+  {campo:"quienesImportan",et:"Su gente",re:/(le importa mucho|muy unid[oa] a|adora a|no falla a|cuida (de|a))/i}
+];
+function sugerirCampos(nota){
+  var frags=(nota||"").split(/[\.;\n]+/).map(function(s){return s.trim();}).filter(Boolean);
+  if(!frags.length) frags=[String(nota||"").trim()];
+  var out=[], vistos={};
+  frags.forEach(function(f){
+    REGLAS_CAMPOS.forEach(function(r){
+      if(r.re.test(f)){
+        var val=f.replace(/^[\-•,;\.\s]+/,"").replace(/[\.;]+$/,"").trim();
+        var key=r.campo+"|"+val.toLowerCase();
+        if(val && !vistos[key]){ vistos[key]=1; out.push({campo:r.campo, et:r.et, valor:val}); }
+      }
+    });
+  });
+  return out.slice(0,6);
+}
+function sugerirAsistido(p,nota){
+  var sug=sugerirCampos(nota); if(!sug.length) return;
+  var el=document.getElementById("sugbar"); if(el) el.remove();
+  el=document.createElement("div"); el.id="sugbar";
+  el.style.cssText="position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--navy,#1e2a3a);color:#fff;padding:12px 14px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.3);z-index:9999;font-size:13px;max-width:92%;width:420px";
+  var rows=sug.map(function(s,i){
+    return '<label style="display:flex;gap:8px;align-items:flex-start;margin:6px 0"><input type="checkbox" data-i="'+i+'" checked style="width:auto;margin-top:3px"><span><b>'+esc(s.et)+':</b> '+esc(s.valor)+'</span></label>';
+  }).join("");
+  el.innerHTML='<div style="margin-bottom:6px">La nota sugiere rellenar:</div>'+rows
+    +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><button class="btn sm" id="sug_no" style="background:#3a4453;color:#fff;border:0">Ahora no</button><button class="btn sm" id="sug_si" style="background:#fff;color:var(--navy,#1e2a3a);border:0">Añadir seleccionadas</button></div>';
+  document.body.appendChild(el);
+  document.getElementById("sug_no").onclick=function(){ el.remove(); };
+  document.getElementById("sug_si").onclick=function(){
+    var n=0;
+    el.querySelectorAll("input[type=checkbox]:checked").forEach(function(c){
+      var s=sug[+c.getAttribute("data-i")]; var antes=p[s.campo]||"";
+      if(antes && antes.toLowerCase().indexOf(s.valor.toLowerCase())>=0) return;
+      p[s.campo]=antes?(antes+" · "+s.valor):s.valor; n++;
+    });
+    if(n){ save(); renderAll(); toast("Añadido a "+n+" campo"+(n>1?"s":"")); }
+    el.remove();
+  };
+}
 function openSync(){
   var puede=fsSoportado(), conectada=!!FS.handle;
   var h='<h2>Sincronizar</h2>'
@@ -2645,6 +2707,12 @@ function openSync(){
     +'<label style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);margin-top:6px"><input type="checkbox" id="ia_ok" style="width:auto"'+(ia.consent?" checked":"")+'> Entiendo que la nota sale del dispositivo hacia mi servidor de IA</label>'
     +'<div style="display:flex;gap:6px;margin-top:8px"><button class="btn primary" id="ia_guardar">Guardar</button><button class="btn" id="ia_probar">Probar</button></div>'
     +'<p style="color:var(--muted);font-size:11.5px;margin:8px 0 0">¿Aún no tienes servidor-puente? Tienes el archivo <code>ia-servidor-puente.js</code> y la guía <code>IA - como activarla.md</code> en tu carpeta.</p></fieldset>';
+  var tc=telCfg();
+  h+='<fieldset style="border-color:'+(telActiva()?"#20b6a6":"var(--line)")+'"><legend style="color:'+(telActiva()?"#20b6a6":"var(--muted)")+'">Monitoreo anónimo (opcional): '+(telActiva()?"activo":"desactivado")+'</legend>'
+    +'<p style="font-size:13px;margin:0 0 8px">Envía datos de uso <b>anónimos</b> (pantallas, errores, nº de fichas y categorías) a tu backend para ver qué funciona y qué se rompe. <b>Nunca</b> nombres ni contenido de las fichas.</p>'
+    +'<div class="fld"><label>Dirección de tu backend de monitoreo (URL)</label><input type="text" id="tel_url" value="'+esc(tc.url||"")+'" placeholder="https://…workers.dev/collect"></div>'
+    +'<label style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" id="tel_on" style="width:auto"'+(tc.on!==false?" checked":"")+'> Enviar estadísticas anónimas</label>'
+    +'<div style="display:flex;gap:6px;margin-top:8px"><button class="btn primary" id="tel_guardar">Guardar</button></div></fieldset>';
   h+='<fieldset><legend>Diagnóstico</legend><div style="font-size:13px;line-height:1.7">'
     +'Fichas en este dispositivo: <b>'+state.people.length+'</b><br>'
     +'Última copia guardada aquí: <b>'+(savedLocal()?fmtDate(savedLocal()):"—")+'</b><br>'
@@ -2652,10 +2720,15 @@ function openSync(){
     +'Cifrado: <b>'+(getPass()?"activado":"no")+'</b> &nbsp;·&nbsp; IA: <b>'+(iaActiva()?"activada":"no")+'</b><br>'
     +'Versión de la app: <b>'+VERSION+'</b>'
     +'</div></fieldset>';
-  h+='<div class="modal-actions"><button class="btn" id="cancel">Cerrar</button></div>';
+  h+='<div class="modal-actions"><button class="btn" id="verpriv">Ver privacidad</button><button class="btn" id="cancel">Cerrar</button></div>';
   showModal(h);
   document.getElementById("cancel").onclick=closeModal;
   var b;
+  if((b=document.getElementById("verpriv"))) b.onclick=verPrivacidad;
+  if((b=document.getElementById("tel_guardar"))) b.onclick=function(){
+    telSetCfg({url:document.getElementById("tel_url").value.trim(), on:document.getElementById("tel_on").checked});
+    toast("Monitoreo guardado"); openSync();
+  };
   if((b=document.getElementById("gd_conectar"))) b.onclick=gdConectar;
   if((b=document.getElementById("gd_desconectar"))) b.onclick=function(){ gdSet(false); gdSetHint(""); GD.token=null; GD.fileId=null; toast("Drive desconectado en este dispositivo"); openSync(); };
   if((b=document.getElementById("gd_ahora"))) b.onclick=function(){ gdSyncSubir().then(function(ok){ if(ok){ closeModal(); toast("Guardado en Drive"); } }); };
@@ -2999,6 +3072,69 @@ function setTab(t){
   if(t==="mapa") buildGraph();
   if(t==="negocio") renderNegocio();
   if(t==="informe") renderInforme();
+  try{ tel("screen",{tab:t}); }catch(e){}
+}
+
+/* ---------- consentimiento de privacidad ---------- */
+var TERMS_VER="2026-08-19";
+var TERMINOS_HTML=''
+ +'<p><b>Mapa de amigos</b> es una herramienta personal para recordar y cuidar tus relaciones.</p>'
+ +'<p><b>Dónde viven tus datos.</b> En este dispositivo y, si conectas Google Drive, en <b>tu</b> Drive. No hay ningún servidor que guarde tus fichas, y no las vendemos ni las compartimos.</p>'
+ +'<p><b>Tu responsabilidad.</b> Aquí anotas información sobre otras personas. Te comprometes a un uso <b>lícito, responsable y respetuoso</b> de esa información, con especial cuidado con datos sensibles y con menores, y a usarla solo para gestionar tus relaciones.</p>'
+ +'<p><b>Estadísticas anónimas (opcional).</b> Si las activas, se envían datos de uso <b>anónimos</b> (pantallas usadas, errores, nº de fichas y su categoría) para mejorar la app. <b>Nunca</b> se envía el contenido de tus fichas ni nombres. Puedes desactivarlo cuando quieras.</p>'
+ +'<p><b>Tus derechos.</b> Puedes exportar o borrar tus datos en cualquier momento desde la app.</p>'
+ +'<p style="color:var(--muted);font-size:12px">La app se ofrece "tal cual". Versión de condiciones: '+TERMS_VER+'.</p>';
+function consentOK(){ try{ return localStorage.getItem("mapaAmigos.consent")===TERMS_VER; }catch(e){ return false; } }
+function pedirConsentimiento(){
+  if(consentOK()) return;
+  var o=document.createElement("div"); o.id="consent";
+  o.style.cssText="position:fixed;inset:0;background:rgba(20,28,40,.78);z-index:100000;display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto";
+  o.innerHTML='<div style="background:#fff;max-width:560px;width:100%;border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35)">'
+    +'<h2 style="margin:0 0 10px">Antes de empezar</h2>'
+    +'<div style="font-size:13.5px;line-height:1.55;max-height:46vh;overflow:auto">'+TERMINOS_HTML+'</div>'
+    +'<label style="display:flex;gap:8px;align-items:flex-start;margin:14px 0;font-size:13px"><input type="checkbox" id="cst_ok" style="width:auto;margin-top:3px"> He leído y acepto cómo se tratan los datos, y me comprometo a un uso responsable de la información que anote sobre otras personas.</label>'
+    +'<div style="display:flex;justify-content:flex-end"><button class="btn primary" id="cst_go" disabled>Aceptar y continuar</button></div></div>';
+  document.body.appendChild(o);
+  var chk=o.querySelector("#cst_ok"), go=o.querySelector("#cst_go");
+  chk.onchange=function(){ go.disabled=!chk.checked; };
+  go.onclick=function(){ try{ localStorage.setItem("mapaAmigos.consent",TERMS_VER); }catch(e){} o.remove(); try{ telInit(); }catch(e){} };
+}
+function verPrivacidad(){
+  showModal('<h2>Privacidad y condiciones</h2><div style="font-size:13.5px;line-height:1.55">'+TERMINOS_HTML+'</div>'
+    +'<div class="modal-actions"><button class="btn primary" id="cancel">Cerrar</button></div>');
+  document.getElementById("cancel").onclick=closeModal;
+}
+
+/* ---------- telemetría anónima (opcional, solo si hay backend y consentimiento) ---------- */
+var TEL_T0=Date.now();
+function telCfg(){ try{ return JSON.parse(localStorage.getItem("mapaAmigos.tel")||"{}"); }catch(e){ return {}; } }
+function telSetCfg(o){ try{ var c=telCfg(); for(var k in o) c[k]=o[k]; localStorage.setItem("mapaAmigos.tel",JSON.stringify(c)); }catch(e){} }
+function telActiva(){ var c=telCfg(); return !!(c.url && c.on!==false && consentOK()); }
+function telId(){
+  try{ var i=localStorage.getItem("mapaAmigos.telid"); if(i) return i;
+    i=(crypto&&crypto.randomUUID)?crypto.randomUUID():("id"+Date.now()+Math.random().toString(16).slice(2));
+    localStorage.setItem("mapaAmigos.telid",i); return i; }catch(e){ return "anon"; }
+}
+function tel(ev,data){
+  try{
+    if(!telActiva()) return;
+    var c=telCfg();
+    var body=JSON.stringify({id:telId(), ev:ev, ts:Date.now(), ver:VERSION, plat:(navigator.platform||""), data:data||{}});
+    if(navigator.sendBeacon){ navigator.sendBeacon(c.url, new Blob([body],{type:"application/json"})); }
+    else { fetch(c.url,{method:"POST",headers:{"Content-Type":"application/json"},body:body,keepalive:true}).catch(function(){}); }
+  }catch(e){}
+}
+function telSnapshot(){
+  try{
+    var cats={}; (state.people||[]).forEach(function(p){ var t=p.tipo||"amigo"; cats[t]=(cats[t]||0)+1; });
+    tel("snapshot",{fichas:(state.people||[]).length, cats:cats, sesionMs:Date.now()-TEL_T0});
+  }catch(e){}
+}
+function telInit(){
+  if(!telActiva()) return;
+  tel("app_open",{});
+  window.addEventListener("error",function(e){ tel("error",{msg:String((e&&e.message)||"").slice(0,140)}); });
+  document.addEventListener("visibilitychange",function(){ if(document.visibilityState==="hidden") telSnapshot(); });
 }
 
 /* ---------- init ---------- */
@@ -3028,6 +3164,8 @@ window.addEventListener("resize",function(){ if(state.tab==="mapa"){ G.alpha=0.3
 initGraphEvents();
 renderAll();
 lockIfNeeded();
+try{ pedirConsentimiento(); }catch(e){}
+try{ telInit(); }catch(e){}
 try{ restaurarCarpeta(); }catch(e){}
 setTimeout(function(){ try{ comprobarVersion(); }catch(e){} },1500);
 try{ gdInit(); }catch(e){}
