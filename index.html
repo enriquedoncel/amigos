@@ -239,7 +239,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 <div class="wrap">
   <header class="top">
     <div class="titlewrap"><div class="title"><h1>Mapa de amigos</h1><small id="count"></small></div>
-      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.20-18</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
+      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.20-19</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
     <div class="tabs">
       <button data-tab="fichas" class="on">Fichas</button>
       <button data-tab="citas">Citas</button>
@@ -310,7 +310,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 
 <script>
 "use strict";
-var VERSION="2026.08.20-18";
+var VERSION="2026.08.20-19";
 var KEY="mapaAmigos.v3";
 var MOTS=[
   ["salud","Salud y vida"],["sustento","Alimento y descanso"],["dinero","Dinero y lo que compra"],
@@ -3194,8 +3194,10 @@ function tel(ev,data){
     if(!telActiva()) return;
     var c=telCfg();
     var body=JSON.stringify({id:telId(), ev:ev, ts:Date.now(), ver:VERSION, plat:(navigator.platform||""), data:data||{}});
-    if(navigator.sendBeacon){ navigator.sendBeacon(c.url, new Blob([body],{type:"application/json"})); }
-    else { fetch(c.url,{method:"POST",headers:{"Content-Type":"application/json"},body:body,keepalive:true}).catch(function(){}); }
+    // texto plano = petición "simple" (sin preflight), para que el envío entre dominios no lo bloquee el navegador
+    var enviado=false;
+    if(navigator.sendBeacon){ try{ enviado=navigator.sendBeacon(c.url, new Blob([body],{type:"text/plain;charset=UTF-8"})); }catch(e){} }
+    if(!enviado){ fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=UTF-8"},body:body,keepalive:true}).catch(function(){}); }
   }catch(e){}
 }
 function telSnapshot(){
