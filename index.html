@@ -239,7 +239,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 <div class="wrap">
   <header class="top">
     <div class="titlewrap"><div class="title"><h1>Mapa de amigos</h1><small id="count"></small></div>
-      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.20-19</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
+      <p class="lema"><span class="ver" id="verEt" title="Versión de la app">2026.08.21-22</span> Todo el mundo quiere sentirse <b>admirado</b>, <b>importante</b>, <b>tener éxito</b> y que recuerden <b>su nombre</b>.</p></div>
     <div class="tabs">
       <button data-tab="fichas" class="on">Fichas</button>
       <button data-tab="citas">Citas</button>
@@ -310,7 +310,7 @@ legend{font-size:12px;color:var(--muted);font-weight:600;padding:0 6px}
 
 <script>
 "use strict";
-var VERSION="2026.08.20-19";
+var VERSION="2026.08.21-22";
 var KEY="mapaAmigos.v3";
 var MOTS=[
   ["salud","Salud y vida"],["sustento","Alimento y descanso"],["dinero","Dinero y lo que compra"],
@@ -328,13 +328,13 @@ var CEBOS={
   admiracion:"que alguien reconozca de verdad lo que hace, y que se diga delante de quien le importa"
 };
 var TIPOS=[
-  ["cliente","Cliente","#e2543f"],
-  ["proveedor","Proveedor","#20b6a6"],
-  ["fabricante","Fabricante","#d99b2b"],
-  ["profesional","Profesional","#4a6fa5"],
   ["amigo","Amigo","#2f9d78"],
   ["familiar","Familiar","#8c5aa8"],
-  ["conocido","Conocido","#6d7a8c"]
+  ["conocido","Conocido","#6d7a8c"],
+  ["profesional","Profesional","#4a6fa5"],
+  ["fabricante","Fabricante","#d99b2b"],
+  ["proveedor","Proveedor","#20b6a6"],
+  ["cliente","Cliente","#e2543f"]
 ];
 function tipoLabel(t){ for(var i=0;i<TIPOS.length;i++) if(TIPOS[i][0]===t) return TIPOS[i][1]; return "Amigo"; }
 function tipoColor(t){ for(var i=0;i<TIPOS.length;i++) if(TIPOS[i][0]===t) return TIPOS[i][2]; return "#3f7d5c"; }
@@ -411,6 +411,10 @@ function ensure(p){
   if(p.tipo==="trabajo") p.tipo="profesional";
   if(p.tipo==="personal") p.tipo="amigo";
   if(!p.tipo) p.tipo="amigo";
+  if(!TIPOS.some(function(t){return t[0]===p.tipo;})){
+    var base=String(p.tipo).split(/[·,\/]| y /)[0].trim().toLowerCase();
+    p.tipo = TIPOS.some(function(t){return t[0]===base;}) ? base : "amigo";
+  }
   ["genero","exito","admirado","importante","preocupa","fascina","ayuda","logros","estilo","sector","meAporta","necesito","buscaDeMi","problema","presume","cebo","discurso","nosUne","nosSepara","hitos","sies","quienesImportan","queQuierenLosSuyos","gustosDeLosSuyos","gesto"]
     .forEach(function(k){ if(p[k]==null) p[k]=""; });
   ["conexiones","notas","encuentros","pasos"].forEach(function(k){ if(!Array.isArray(p[k])) p[k]=[]; });
@@ -781,6 +785,15 @@ function afinidadResumenHTML(m){
       +'<button class="btn sm" type="button" onclick="openEdit(\''+x.p.id+'\')">Ver</button></div>';
   }).join("");
 }
+function pasosObjetivo(r){
+  var pasos=[];
+  if(r[0]) pasos.push("Empieza por <b>"+esc(r[0].p.nombre)+"</b>, quien más encaja con tu objetivo. Abre su <b>Plan</b> y su <b>Guión</b> y háblale primero de lo que le interesa, antes de pedir nada.");
+  else pasos.push("Completa las fichas (a qué se dedican, en qué pueden ayudar) para que pueda decirte por quién empezar.");
+  if(r[1]) pasos.push("Aporta antes de pedir: hazle a <b>"+esc(r[1].p.nombre)+"</b> un favor o dale un dato útil sobre lo suyo. Primero das, luego pides — y así te ganas el sí.");
+  else pasos.push("Aporta valor antes de pedir: un dato, un contacto o una idea sobre lo que le importa a esa persona.");
+  pasos.push("Cierra con un sí pequeño: define exactamente qué vas a pedir y con qué «cebo» (en sus términos), y deja que la idea parezca suya.");
+  return pasos;
+}
 function renderAfinidad(){
   var box=document.getElementById("afinidadBox"); if(!box) return;
   var m=state.me||newMe(), obj=(m.pido||"").trim();
@@ -790,7 +803,11 @@ function renderAfinidad(){
     var b=document.getElementById("af_perfil"); if(b) b.onclick=openMe; return;
   }
   var r=afinidad(obj);
-  var h='<div class="sec-title">Para conseguir: «'+esc(obj)+'», habla con:</div>';
+  var pasos=pasosObjetivo(r);
+  var h='<div class="sec-title">Tu plan en 3 pasos para: «'+esc(obj)+'»</div>';
+  h+='<div class="infobox"><ol style="margin:0;padding-left:20px;line-height:1.55">'
+    +pasos.map(function(s){ return '<li style="margin:5px 0">'+s+'</li>'; }).join("")+'</ol></div>';
+  h+='<div class="sec-title">Personas con más afinidad</div>';
   if(!r.length){ box.innerHTML=h+'<div class="empty">Todavía no encuentro afinidades claras. Completa en las fichas a qué se dedican y en qué pueden ayudarte, y volveré a sugerir.</div>'; return; }
   var max=r[0].score||1;
   h+=r.slice(0,20).map(function(x){
@@ -1516,6 +1533,11 @@ function gatoSVG(p,col){
   g+='</g>';
   return g;
 }
+function pinceladaDe(p){
+  var c=[p.sector,p.empleo,p.fascina,p.aficiones,p.exito].map(function(x){return String(x||"").trim();}).filter(Boolean);
+  var s=c.length ? c[0] : tipoLabel(p.tipo);
+  return esencia(s,40) || tipoLabel(p.tipo);
+}
 function escenaSVG(p){
   var col=colorOf(p);
   var exito=esencia(p.exito||"(aún no sé qué persigue)",150);
@@ -1555,8 +1577,8 @@ function escenaSVG(p){
    // placa con el nombre
    +'<g><rect x="250" y="690" width="400" height="86" fill="#8f9294" stroke="#6f7274" stroke-width="4"/>'
    +'<rect x="258" y="698" width="384" height="70" fill="'+col+'"/>'
-   +'<text x="450" y="732" class="t n" text-anchor="middle">'+esc(recorta(nom,26))+'</text>'
-   +'<text x="450" y="756" class="t s" text-anchor="middle" fill="#f6efe6">RECUERDA SU NOMBRE</text></g>'
+   +'<text x="450" y="732" class="t n" text-anchor="middle">'+esc(recorta(pinceladaDe(p),30))+'</text>'
+   +'<text x="450" y="756" class="t s" text-anchor="middle" style="fill:#f6efe6">UN RASGO SUYO</text></g>'
    // taza con lo que le fascina
    +'<g transform="translate(70,660)">'
    +'<rect x="0" y="0" width="186" height="132" rx="14" fill="#efe9dd"/>'
@@ -1567,9 +1589,9 @@ function escenaSVG(p){
    +'<g transform="translate(640,650)">'
    +'<rect x="-30" y="0" width="245" height="140" rx="8" fill="#16202b"/>'
    +'<rect x="-20" y="10" width="225" height="120" rx="6" fill="none" stroke="#ecc873" stroke-width="2"/>'
-   +'<text x="-4" y="42" class="t s" fill="#ecc873">SU CEBO</text>'
-   +(cebo? txtSVG(cebo,-4,70,20,3,"t p",22,200,17).replace(/class="t p"/g,'class="t p" fill="#ffffff" font-weight="700"')
-        : '<text x="26" y="62" class="t p" fill="#c2ccd8">sin definir</text>')
+   +'<text x="-4" y="42" class="t s" style="fill:#f3d47a">SU CEBO</text>'
+   +(cebo? txtSVG(cebo,-4,70,20,3,"t p",22,200,17).replace(/class="t p"/g,'class="t p" style="fill:#ffffff;font-weight:700"')
+        : '<text x="26" y="62" class="t p" style="fill:#c2ccd8">sin definir</text>')
    +'</g>'
    // nota del gesto
    +(gesto? '<g transform="translate(250,600)"><rect width="300" height="70" fill="#f3e08a" transform="rotate(-2)"/>'
@@ -1627,7 +1649,7 @@ function promptEscena(p){
   if(p.admirado) l.push('- Bocadillo de pensamiento sobre el gato: "'+recorta(p.admirado,90)+'"');
   if(p.fascina||p.aficiones) l.push('- Taza de café con el texto: "'+recorta(p.fascina||p.aficiones,45)+'"');
   if(p.cebo||ceboDe(p)) l.push('- Lomo de un libro sobre la mesa: "'+recorta(p.cebo||ceboDe(p),50)+'"');
-  l.push('- Placa de bronce sobre la mesa con el nombre: "'+recorta(p.nombre,30)+'"');
+  l.push('- Placa de bronce sobre la mesa, sin nombres, con un rasgo suyo: "'+recorta(pinceladaDe(p),30)+'"');
   if(p.aficiones) l.push("Objetos de atrezo relacionados con: "+recorta(p.aficiones,80)+".");
   l.push("Estilo: fotografía de estudio, tonos cálidos y apagados, profundidad de campo suave, aire de retrato corporativo antiguo.");
   return l.join("\n");
@@ -2784,7 +2806,7 @@ function openSync(){
   var tc=telCfg();
   h+='<fieldset style="border-color:'+(telActiva()?"#20b6a6":"var(--line)")+'"><legend style="color:'+(telActiva()?"#20b6a6":"var(--muted)")+'">Monitoreo anónimo (opcional): '+(telActiva()?"activo":"desactivado")+'</legend>'
     +'<p style="font-size:13px;margin:0 0 8px">Envía datos de uso <b>anónimos</b> (pantallas, errores, nº de fichas y categorías) a tu backend para ver qué funciona y qué se rompe. <b>Nunca</b> nombres ni contenido de las fichas.</p>'
-    +'<div class="fld"><label>Dirección de tu backend de monitoreo (URL)</label><input type="text" id="tel_url" value="'+esc(tc.url||"")+'" placeholder="https://…workers.dev/collect"></div>'
+    +'<div class="fld"><label>Dirección de tu backend de monitoreo (URL)</label><input type="text" id="tel_url" value="'+esc(tc.url||TEL_URL)+'" placeholder="https://…workers.dev/collect"></div>'
     +'<label style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" id="tel_on" style="width:auto"'+(tc.on!==false?" checked":"")+'> Enviar estadísticas anónimas</label>'
     +'<div style="display:flex;gap:6px;margin-top:8px"><button class="btn primary" id="tel_guardar">Guardar</button></div></fieldset>';
   h+='<fieldset><legend>Diagnóstico</legend><div style="font-size:13px;line-height:1.7">'
@@ -3155,7 +3177,7 @@ var TERMINOS_HTML=''
  +'<p><b>Mapa de amigos</b> es una herramienta personal para recordar y cuidar tus relaciones.</p>'
  +'<p><b>Dónde viven tus datos.</b> En este dispositivo y, si conectas Google Drive, en <b>tu</b> Drive. No hay ningún servidor que guarde tus fichas, y no las vendemos ni las compartimos.</p>'
  +'<p><b>Tu responsabilidad.</b> Aquí anotas información sobre otras personas. Te comprometes a un uso <b>lícito, responsable y respetuoso</b> de esa información, con especial cuidado con datos sensibles y con menores, y a usarla solo para gestionar tus relaciones.</p>'
- +'<p><b>Estadísticas anónimas (opcional).</b> Si las activas, se envían datos de uso <b>anónimos</b> (pantallas usadas, errores, nº de fichas y su categoría) para mejorar la app. <b>Nunca</b> se envía el contenido de tus fichas ni nombres. Puedes desactivarlo cuando quieras.</p>'
+ +'<p><b>Estadísticas anónimas.</b> Para mejorar la app se envían datos de uso <b>anónimos</b> (pantallas usadas, errores, nº de fichas y su categoría, y temas en categorías amplias). <b>Nunca</b> se envía el contenido de tus fichas ni nombres, ni nada que identifique a tus contactos. Puedes desactivarlo cuando quieras en <b>Sincronizar → Monitoreo anónimo</b>.</p>'
  +'<p><b>Tus derechos.</b> Puedes exportar o borrar tus datos en cualquier momento desde la app.</p>'
  +'<p style="color:var(--muted);font-size:12px">La app se ofrece "tal cual". Versión de condiciones: '+TERMS_VER+'.</p>';
 function consentOK(){ try{ return localStorage.getItem("mapaAmigos.consent")===TERMS_VER; }catch(e){ return false; } }
@@ -3181,9 +3203,11 @@ function verPrivacidad(){
 
 /* ---------- telemetría anónima (opcional, solo si hay backend y consentimiento) ---------- */
 var TEL_T0=Date.now();
+var TEL_URL="https://mapa-amigos-monitor.geselectiberica.workers.dev/collect"; // endpoint de estadísticas anónimas, integrado para todas las instalaciones
+function telUrl(){ var c=telCfg(); return c.url || TEL_URL; }
 function telCfg(){ try{ return JSON.parse(localStorage.getItem("mapaAmigos.tel")||"{}"); }catch(e){ return {}; } }
 function telSetCfg(o){ try{ var c=telCfg(); for(var k in o) c[k]=o[k]; localStorage.setItem("mapaAmigos.tel",JSON.stringify(c)); }catch(e){} }
-function telActiva(){ var c=telCfg(); return !!(c.url && c.on!==false && consentOK()); }
+function telActiva(){ var c=telCfg(); return !!(telUrl() && c.on!==false && consentOK()); }
 function telId(){
   try{ var i=localStorage.getItem("mapaAmigos.telid"); if(i) return i;
     i=(crypto&&crypto.randomUUID)?crypto.randomUUID():("id"+Date.now()+Math.random().toString(16).slice(2));
@@ -3196,14 +3220,33 @@ function tel(ev,data){
     var body=JSON.stringify({id:telId(), ev:ev, ts:Date.now(), ver:VERSION, plat:(navigator.platform||""), data:data||{}});
     // texto plano = petición "simple" (sin preflight), para que el envío entre dominios no lo bloquee el navegador
     var enviado=false;
-    if(navigator.sendBeacon){ try{ enviado=navigator.sendBeacon(c.url, new Blob([body],{type:"text/plain;charset=UTF-8"})); }catch(e){} }
-    if(!enviado){ fetch(c.url,{method:"POST",headers:{"Content-Type":"text/plain;charset=UTF-8"},body:body,keepalive:true}).catch(function(){}); }
+    var url=telUrl();
+    if(navigator.sendBeacon){ try{ enviado=navigator.sendBeacon(url, new Blob([body],{type:"text/plain;charset=UTF-8"})); }catch(e){} }
+    if(!enviado){ fetch(url,{method:"POST",headers:{"Content-Type":"text/plain;charset=UTF-8"},body:body,keepalive:true}).catch(function(){}); }
   }catch(e){}
+}
+var TEMAS_BUCKETS=[
+  ["ventas",/(vent|client|comercial|factur|negoci|mercado|precio|distribu)/i],
+  ["trabajo",/(trabaj|emple|puesto|ascens|proyect|jefe|carrera|oficina)/i],
+  ["salud",/(salud|enferm|m[eé]dic|dieta|gimnas|\bpeso\b|bienestar)/i],
+  ["familia",/(famili|\bhij|pareja|marido|mujer|madre|padre|boda|embaraz|nieto)/i],
+  ["dinero",/(dinero|ahorr|hipotec|deuda|inversi|financ|\bpiso\b|\bcasa\b)/i],
+  ["ocio",/(viaj|m[uú]sica|cine|f[uú]tbol|p[aá]del|deporte|hobby|coche|lectura|golf|vino)/i],
+  ["formacion",/(estudi|universidad|curso|examen|oposici|instituto|colegio|formaci)/i],
+  ["tecnologia",/(tecnolog|software|\bapp\b|digital|ordenador|inform[aá]tic)/i]
+];
+function temasDe(){
+  var c={};
+  (state.people||[]).forEach(function(p){
+    var hay=[p.preocupa,p.fascina,p.exito,p.aficiones,p.temas,p.ayuda].join(" ");
+    TEMAS_BUCKETS.forEach(function(b){ if(b[1].test(hay)) c[b[0]]=(c[b[0]]||0)+1; });
+  });
+  return c;
 }
 function telSnapshot(){
   try{
     var cats={}; (state.people||[]).forEach(function(p){ var t=p.tipo||"amigo"; cats[t]=(cats[t]||0)+1; });
-    tel("snapshot",{fichas:(state.people||[]).length, cats:cats, sesionMs:Date.now()-TEL_T0});
+    tel("snapshot",{fichas:(state.people||[]).length, cats:cats, temas:temasDe(), sesionMs:Date.now()-TEL_T0});
   }catch(e){}
 }
 function telInit(){
